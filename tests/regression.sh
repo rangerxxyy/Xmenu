@@ -356,7 +356,7 @@ END {if (!found || !title_line) exit 1}' "$test_dir/plain-menu.txt" || fail 'tit
     xmenu_service_menu() { printf 'SERVICE-HOTKEY\n'; }
     main > "$test_dir/service-hotkey.txt" || fail 'S hotkey dispatch failed'
 )
-grep -q 'S = service, U = check updates' "$test_dir/service-hotkey.txt" || fail 'S or U missing from prompt'
+grep -q 'S=service, U=updates, E=editor' "$test_dir/service-hotkey.txt" || fail 'service, update, or editor shortcut missing from prompt'
 grep -q 'SERVICE-HOTKEY' "$test_dir/service-hotkey.txt" || fail 'S did not open service submenu'
 
 # Фоновое заполнение кеша не должно повторно печатать весь экран.
