@@ -14,7 +14,7 @@ def values(path):
 
 class StrategyTests(unittest.TestCase):
     def test_count_names_and_comment_free_assignments(self):
-        self.assertEqual(len(FILES), 30)
+        self.assertEqual(len(FILES), 17)
         for path in FILES:
             with self.subTest(path=path.name):
                 text = path.read_text()

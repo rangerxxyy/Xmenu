@@ -1758,17 +1758,27 @@ strategy_names_from_manifest() {
     _sn_manifest="$ROOT_DIR/manifests/SHA256SUMS"
     [ -s "$_sn_manifest" ] || return 1
     LC_ALL=C awk -v ver="$_sn_ver" -v group="${2:-main}" '
+        function key(value) {
+            sub(/^additional\//, "", value); sub(/\.conf$/, "", value)
+            value=tolower(value); gsub(/[^a-z0-9]/, "", value); return value
+        }
         length(substr($0,1,64))==64 && substr($0,1,64) ~ /^[0-9a-fA-F]+$/ {
             rel=substr($0,65); sub(/^[[:space:]]+/, "", rel); sub(/^\*/, "", rel)
             prefix="strategies/nfqws" ver "/"
             if (index(rel,prefix)!=1) next
             name=substr(rel,length(prefix)+1)
             if (name !~ /^(additional\/)?[A-Za-z0-9_.+ -]+\.conf$/ || name ~ /\.\./) next
+            hash=tolower(substr($0,1,64))
+            if (NR==FNR) {
+                if (index(name,"/")==0) { main_names[key(name)]=1; main_hashes[hash]=1 }
+                next
+            }
             if (group == "additional" && index(name,"additional/") != 1) next
             if (group != "additional" && index(name,"/") != 0) next
+            if (group == "additional" && (main_names[key(name)] || main_hashes[hash])) next
             print name
         }
-    ' "$_sn_manifest" | LC_ALL=C sort -u
+    ' "$_sn_manifest" "$_sn_manifest" | LC_ALL=C sort -u
 }
 # Извлекаем абсолютные пути к blobs/lists так же, как nfqws-menu: учитываем @/path и =/path.
 extract_blob_paths() {
@@ -2344,7 +2354,9 @@ XMENU_STRATEGY_ORDER
         else printf "      %2d. %-28s %s\n", NR, $1, $2
     }' "$_display"
     if [ "$_ver" = 2 ] && [ "${XMENU_STRATEGY_GROUP:-main}" = main ]; then
+        printf '%b' "$BRIGHT_CYAN"
         menu_item 99 'Дополнительные конфигурации'
+        printf '%b' "$RESET"
     fi
     menu_item 0 'Назад'
     line; _read_or_eof 'Номер стратегии: ' || { rm -f "$_display"; return 0; }; _n=$_read_value

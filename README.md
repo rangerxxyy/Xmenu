@@ -205,7 +205,7 @@ Xmenu работает поверх Entware: выполняет пакетные
 
 ### 1. Выбрать и применить стратегию
 
-Показывает каталог конфигураций для выбранной версии. Основной список NFQWS2 сохраняет **40 вариантов**. Пункт **99 — Дополнительные конфигурации** открывает отдельный список из **30 файлов**. Среди них есть переработанные версии конфигураций из основного каталога; это два отдельных списка, а не заявление о 70 уникальных методах обхода.
+Показывает каталог конфигураций для выбранной версии. Основной список NFQWS2 сохраняет **40 вариантов**. Пункт **99 — Дополнительные конфигурации** выделен ярким бирюзовым и открывает отдельный список из **17 файлов** без повторов основного каталога. Совпадения по названию или SHA-256 скрываются автоматически.
 
 - Активная стратегия определяется сравнением с действующим конфигом.
 - Манифест с контрольными суммами кэшируется на час; конфиги скачиваются по выбору.
@@ -239,26 +239,28 @@ wssize_disorder
 </details>
 
 <details>
-<summary><b>Дополнительные конфигурации — 30 файлов .conf</b></summary>
+<summary><b>Дополнительные конфигурации — 17 файлов .conf</b></summary>
 
 Откройте **12 → 1 → 99**. Подменю использует ту же последовательность применения: загрузка выбранного файла → SHA-256 → подготовка blobs/lists → бэкап → сохранение WAN-интерфейса → замена конфига → перезапуск службы. Манифест и файл загружаются из одной ревизии Xmenu; проверенный файл остаётся в кэше для повторного применения.
 
 ```text
-Aggressive-Hybrid                 Balanced-AutoTTL-FakedDisorder
-Brutal-Hybrid-Experimental        Brutal-config
-Configuration-3.2                configuration-3.1
-Custom-TCP-UDP-Switchboard        Experimental-SYN-OOB-MD5
-Fake-Flood                       Fake-Split
-Fake-google                      FakedDisorder-Autottl
-HTTP-Specialized-AutoTTL          HTTP-Specialized
-Hybrid-config                    Hybrid2.0
-IPFrag-TCP                       MAX-Fooling
-Minimal-split                    QUIC-Hard-AutoTTL
-QUIC-Stable-Auto                 Range-Cutoff
-Soft-Auto-TLS                    WSSIZE-Disorder
-Wssize-Syndata                   easy-fake
-fake-discorder                   hostfake-easy
-iPhone-Mobile-Tuned              multidiscorder
+Brutal-config
+configuration-3.1
+easy-fake
+fake-discorder
+Fake-Flood
+Fake-google
+Fake-Split
+FakedDisorder-Autottl
+hostfake-easy
+HTTP-Specialized
+Hybrid-config
+IPFrag-TCP
+MAX-Fooling
+Minimal-split
+multidiscorder
+Range-Cutoff
+Wssize-Syndata
 ```
 
 В репозитории это файлы [`.conf` в отдельной папке](strategies/nfqws2/additional/). Расширения и числовые префиксы скрыты в названиях выбора. Справочный MANIFEST не включён как стратегия.
@@ -981,7 +983,7 @@ Xmenu/
 ├─ strategies/
 │  └─ nfqws2/
 │     ├─ *.conf                 конфигурации основного списка
-│     ├─ additional/*.conf      30 дополнительных конфигураций
+│     ├─ additional/*.conf      17 дополнительных конфигураций
 │     └─ SHA256SUMS             контрольные суммы конфигураций
 ├─ docs/                        методика проверок и описания релизов
 ├─ tests/                       регрессионные и PTY-сценарии
