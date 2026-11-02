@@ -1,6 +1,6 @@
 #!/bin/sh
-# Xmenu ◆ v1.4.4 — Entware / BusyBox ash
-APP_VERSION="1.4.4"
+# Xmenu ◆ v1.4.5 — Entware / BusyBox ash
+APP_VERSION="1.4.5"
 # XKEEN_MENU_AUTO_YES=1/true/yes/on отключает подтверждение только для NFQWS2 UI в install-all.
 ROOT_DIR="/opt/etc/xmenu"
 BACKUP_DIR="$ROOT_DIR/backups"
@@ -2807,7 +2807,7 @@ def request(url, ip, transport, direct=False, accept='*/*', read_limit=16384):
             data['cert_expires'] = certificate.get('notAfter')
         data['stage'] = 'HTTP'
         target = urllib.parse.urlunsplit(('', '', parsed.path or '/', parsed.query, ''))
-        headers = 'GET ' + target + ' HTTP/1.1\r\nHost: ' + parsed.netloc + '\r\nUser-Agent: Xmenu/1.4.4\r\nAccept: ' + accept + '\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n'
+        headers = 'GET ' + target + ' HTTP/1.1\r\nHost: ' + parsed.netloc + '\r\nUser-Agent: Xmenu/1.4.5\r\nAccept: ' + accept + '\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n'
         sock.settimeout(transport.remaining(min(3, max(.001, deadline - time.monotonic()))))
         started = time.monotonic()
         sock.sendall(headers.encode('ascii'))
@@ -5596,7 +5596,7 @@ def fetch_json(url, timeout=6, payload=None):
         timer.start()
         path = urllib.parse.urlunsplit(('', '', parsed.path or '/', parsed.query, ''))
         data = json.dumps(payload).encode('utf-8') if payload is not None else b''
-        headers = ('POST' if payload is not None else 'GET') + ' ' + path + ' HTTP/1.1\r\nHost: ' + parsed.hostname + '\r\nAccept: application/json\r\nUser-Agent: Xmenu/1.4.4\r\nConnection: close\r\n'
+        headers = ('POST' if payload is not None else 'GET') + ' ' + path + ' HTTP/1.1\r\nHost: ' + parsed.hostname + '\r\nAccept: application/json\r\nUser-Agent: Xmenu/1.4.5\r\nConnection: close\r\n'
         if payload is not None:
             headers += 'Content-Type: application/json\r\nContent-Length: ' + str(len(data)) + '\r\n'
         sock.sendall((headers + '\r\n').encode('ascii') + data)
@@ -6293,7 +6293,7 @@ def main():
     path_route = inspect_route(ip, path)
     path['local_filter'] = inspect_filter(ip, path)
     skipped = lambda port: {'status': 'SKIPPED', 'port_state': 'UNKNOWN', 'ms': None, 'port': port, 'attempts': []}
-    report = {'schema_version': 2, 'version': '1.4.4', 'generated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'ip': ip, 'ports': ports, 'path': path, 'route': path_route, 'tcp': {p: skipped(p) for p in ports}, 'udp': {}, 'http': {}, 'tls': {}, 'syn': {}, 'services': {}, 'discovery': {'status': 'SKIPPED', 'ports': []}, 'routing': {}, 'controls': {}, 'traces': {}, 'external': [], 'external_status': 'DISABLED' if private else 'NOT_NEEDED', 'stages': [], 'errors': [], 'ping': {'status': 'SKIPPED', 'sent': 0, 'received': 0, 'rtts': [], 'events': []}, 'settings': {'external_allowed': not private, 'timeout': args.timeout, 'max_workers': 3, 'max_hops': args.hops, 'discovery_port_cap': MAX_DISCOVERY_PORTS, 'total_port_cap': MAX_TOTAL_PORTS}, 'dependencies': {name: bool(shutil.which(name)) for name in ('ip', 'iptables', 'ip6tables', 'nft', 'nmap', 'mtr', 'curl', 'jq')}}
+    report = {'schema_version': 2, 'version': '1.4.5', 'generated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'ip': ip, 'ports': ports, 'path': path, 'route': path_route, 'tcp': {p: skipped(p) for p in ports}, 'udp': {}, 'http': {}, 'tls': {}, 'syn': {}, 'services': {}, 'discovery': {'status': 'SKIPPED', 'ports': []}, 'routing': {}, 'controls': {}, 'traces': {}, 'external': [], 'external_status': 'DISABLED' if private else 'NOT_NEEDED', 'stages': [], 'errors': [], 'ping': {'status': 'SKIPPED', 'sent': 0, 'received': 0, 'rtts': [], 'events': []}, 'settings': {'external_allowed': not private, 'timeout': args.timeout, 'max_workers': 3, 'max_hops': args.hops, 'discovery_port_cap': MAX_DISCOVERY_PORTS, 'total_port_cap': MAX_TOTAL_PORTS}, 'dependencies': {name: bool(shutil.which(name)) for name in ('ip', 'iptables', 'ip6tables', 'nft', 'nmap', 'mtr', 'curl', 'jq')}}
     quiet = args.json
     try:
         if not quiet:
@@ -7353,10 +7353,10 @@ check_xmenu_update_now() {
     if version_is_older "$APP_VERSION" "$_cxu_version"; then
         if [ "$_cxu_lang" = en ]; then
             say "${CYAN}↑ Update available: Xmenu v$_cxu_version (installed: v$APP_VERSION).${RESET}"
-            say 'Choose option 21 — Update Xmenu to install it.'
+            say 'Open Update Xmenu to install it; E opens the menu editor.'
         else
             say "${CYAN}↑ Доступно обновление Xmenu v$_cxu_version (установлена: v$APP_VERSION).${RESET}"
-            say 'Для установки выбери пункт 21 — «Обновить Xmenu». '
+            say 'Для установки открой «Обновить Xmenu»; E — редактор меню.'
         fi
         XMENU_MANUAL_UPDATE_CHECK=0
         return 0
@@ -7524,15 +7524,15 @@ xmenu_show_pending_update_notice() {
     xmenu_valid_version "$_xsp_latest" || return 0
     version_is_older "$APP_VERSION" "$_xsp_latest" || return 0
     if [ "$(get_ui_lang)" = en ]; then
-        _xsp_notice="↑ Update available: Xmenu v$_xsp_latest. Choose option 21 to install it."
+        _xsp_notice="↑ Update available: Xmenu v$_xsp_latest. Open Update Xmenu; E opens the editor."
     else
-        _xsp_notice="↑ Доступно обновление Xmenu v$_xsp_latest. Выбери пункт 21 для установки."
+        _xsp_notice="↑ Доступно обновление Xmenu v$_xsp_latest. Установка: «Обновить Xmenu»; E — редактор."
     fi
     _xsp_width=$(terminal_width)
     _xsp_length=$(printf '%s' "$_xsp_notice" | LC_ALL=C tr -d '\200-\277' | wc -c | tr -d ' ')
     if [ $((_xsp_length + 2)) -ge "$_xsp_width" ]; then
-        if [ "$(get_ui_lang)" = en ]; then _xsp_notice="↑ Xmenu v$_xsp_latest — update: 21"
-        else _xsp_notice="↑ Xmenu v$_xsp_latest — обновить: 21"; fi
+        if [ "$(get_ui_lang)" = en ]; then _xsp_notice="↑ Xmenu v$_xsp_latest — select Update Xmenu"
+        else _xsp_notice="↑ Xmenu v$_xsp_latest — выбери «Обновить Xmenu»"; fi
     fi
     say "${CYAN}  $_xsp_notice${RESET}"
     XMENU_UPDATE_NOTICE_VISIBLE=1
@@ -8321,6 +8321,32 @@ change_ui_language() {
 
 
 # ------------------------------- Service tools -------------------------------
+xmenu_upgrade_all_packages() (
+    require_opkg || return 1
+    _xuap_lang=$(get_ui_lang)
+    if [ "$_xuap_lang" = en ]; then
+        confirm 'Run opkg update and upgrade all installed packages?' || return 0
+    else
+        confirm 'Выполнить opkg update и обновить все установленные пакеты?' || return 0
+    fi
+    acquire_lock || return 1
+    trap 'invalidate_component_status_cache; release_operation_lock' 0
+    say "${BRIGHT_CYAN}[1/2] opkg update${RESET}"
+    if ! opkg update; then
+        if [ "$_xuap_lang" = en ]; then say "${RED}Package indexes could not be updated. Upgrade was not started.${RESET}"
+        else say "${RED}Не удалось обновить индексы. Обновление пакетов не запускалось.${RESET}"; fi
+        return 1
+    fi
+    say "${BRIGHT_CYAN}[2/2] opkg upgrade${RESET}"
+    if ! opkg upgrade; then
+        if [ "$_xuap_lang" = en ]; then say "${RED}Some packages could not be upgraded. See the OPKG output above.${RESET}"
+        else say "${RED}Не все пакеты удалось обновить. Причина указана в выводе OPKG выше.${RESET}"; fi
+        return 1
+    fi
+    if [ "$_xuap_lang" = en ]; then say "${GREEN}All package upgrades completed.${RESET}"
+    else say "${GREEN}Обновление всех пакетов завершено.${RESET}"; fi
+)
+
 xmenu_service_menu() {
     _xsm_lang=$(get_ui_lang)
     while :; do
@@ -8329,6 +8355,7 @@ xmenu_service_menu() {
             menu_item 1 'Dropbear Fix'
             menu_item 2 'Compress bin/sbin (UPX)'
             menu_item 3 'Discord Fix (full voice UDP session in nfqws2)'
+            menu_item 4 'Upgrade all packages (OPKG)'
             menu_item 0 'Back'
             _xsm_prompt='[?] Select an option: '
         else
@@ -8336,6 +8363,7 @@ xmenu_service_menu() {
             menu_item 1 'Dropbear Fix'
             menu_item 2 'Сжать bin/sbin (UPX)'
             menu_item 3 'Discord Fix (все UDP-пакеты в nfqws2)'
+            menu_item 4 'Обновить все пакеты (OPKG)'
             menu_item 0 'Назад'
             _xsm_prompt='[?] Выбери пункт: '
         fi
@@ -8344,6 +8372,7 @@ xmenu_service_menu() {
             1) xmenu_dropbear_fix ;;
             2) xmenu_compress_binsbin ;;
             3) xmenu_discord_menu ;;
+            4) xmenu_upgrade_all_packages; pause ;;
             0|'') return 0 ;;
             *) say 'Неверный пункт.' ;;
         esac
@@ -9715,6 +9744,7 @@ xmenu_other_utilities_menu() {
 # The main menu is the single entry point; service tools are opened with S.
 
 render_menu() {
+    xmenu_load_hidden_items
     _XMENU_RENDER_WIDTH=$(terminal_width)
     _XMENU_FRAME_FILE="$ROOT_DIR/.menu-frame.$$"
     if ! render_menu_content > "$_XMENU_FRAME_FILE"; then rm -f "$_XMENU_FRAME_FILE"; return 1; fi
@@ -9771,74 +9801,268 @@ render_menu_content() {
     xmenu_show_pending_update_notice
     [ "${XMENU_UPDATE_NOTICE_VISIBLE:-0}" = 1 ] || say ''
 
-    if [ "$_lang" = en ]; then
-        say "${PURPLE}[::]  Install / update:${RESET}"
-        menu_item 1  'XKeen — Stable'
-        menu_item 2  'XKeen UI — zxc-rv'
-        menu_item 3  'XKeen UI — umarcheh001'
-        menu_item 4  'nfqws2'
-        menu_item 5  'nfqws v1 — step-by-step install / update'
-        menu_item 6  'nfqws-web-keenetic'
-        menu_item 7  'nfqws2-ui'
-        say ""
-        say "${PURPLE}[::]  Manual installation profiles:${RESET}"
-        menu_item 8  'XKeen Auto (Mihomo + GeoIPSet + XKeen at startup)'
-        menu_item 9  'XKeen Auto (Xray + GeoIPSet + XKeen at startup)'
-        menu_item 10  'Mihomo + GeoIPSet + XKeen Auto + XKeen UI + nfqws2 + nfqws-web-keenetic'
-        menu_item 11 'Xray + GeoIPSet + XKeen Auto + XKeen UI + nfqws2 + nfqws-web-keenetic'
-        say ""
-        say "${PURPLE}[::]  nfqws2 management:${RESET}"
-        menu_item 12 'nfqws2 management'
-        say ""
-        say "${PURPLE}[::]  Utilities / diagnostics:${RESET}"
-        menu_item 13 'Diagnostics'
-        menu_item 14 'TG WS Proxy Rust'
-        menu_item 15 'KeenKit'
-        menu_item 16 'awg-manager'
-        menu_item 17 'Other utilities'
-        say ""
-        say "${PURPLE}[::]  Maintenance / settings:${RESET}"
-        menu_item 18 'Сменить язык: RU / EN (change language)'
-        menu_item 19 'Remove components'
-        menu_item 20 'Remove Xmenu'
-        menu_item 21 'Update Xmenu'
-        menu_item 22 'OPKG settings / Entware mirrors'
-        menu_item 0  'Exit'
-    else
-        say "${PURPLE}[::]  Установка / обновление:${RESET}"
-        menu_item 1  'XKeen — Stable'
-        menu_item 2  'XKeen UI — zxc-rv'
-        menu_item 3  'XKeen UI — umarcheh001'
-        menu_item 4  'nfqws2'
-        menu_item 5  'nfqws v1 — поэтапная установка / обновление'
-        menu_item 6  'nfqws-web-keenetic'
-        menu_item 7  'nfqws2-ui'
-        say ""
-        say "${PURPLE}[::]  Ручные настройки установки:${RESET}"
-        menu_item 8  'XKeen Auto (Mihomo + GeoIPSet + XKeen в автозагрузке)'
-        menu_item 9  'XKeen Auto (Xray + GeoIPSet + XKeen в автозагрузке)'
-        menu_item 10  'Mihomo + GeoIPSet + XKeen Auto + XKeen UI + nfqws2 + nfqws-web-keenetic'
-        menu_item 11 'Xray + GeoIPSet + XKeen Auto + XKeen UI + nfqws2 + nfqws-web-keenetic'
-        say ""
-        say "${PURPLE}[::]  Управление nfqws2:${RESET}"
-        menu_item 12 'Управление nfqws2'
-        say ""
-        say "${PURPLE}[::]  Утилиты и диагностика:${RESET}"
-        menu_item 13 'Диагностика'
-        menu_item 14 'TG WS Proxy Rust'
-        menu_item 15 'KeenKit'
-        menu_item 16 'awg-manager'
-        menu_item 17 'Прочие утилиты'
-        say ""
-        say "${PURPLE}[::]  Обслуживание и настройки:${RESET}"
-        menu_item 18 'Сменить язык: RU / EN (change language)'
-        menu_item 19 'Удаление компонентов'
-        menu_item 20 'Удалить Xmenu'
-        menu_item 21 'Обновить Xmenu'
-        menu_item 22 'Настройки OPKG / зеркала Entware'
-        menu_item 0  'Выход'
-    fi
+    xmenu_render_main_items
     line
+}
+
+xmenu_load_hidden_items() {
+    XMENU_HIDDEN_ITEMS=''
+    if [ -f "$ROOT_DIR/hidden-menu-items" ]; then
+        XMENU_HIDDEN_ITEMS=$(LC_ALL=C awk '
+            /^[0-9]+$/ && $0+0>=1 && $0+0<=22 && !seen[$0+0]++ {
+                printf "%d ", $0+0
+                if (++count==22) exit
+            }
+        ' "$ROOT_DIR/hidden-menu-items" 2>/dev/null || :)
+    fi
+}
+
+xmenu_main_item_hidden() {
+    case " ${XMENU_HIDDEN_ITEMS:-} " in *" $1 "*) return 0 ;; esac
+    return 1
+}
+
+xmenu_main_group_visible() {
+    [ "${XMENU_EDITOR_MODE:-0}" != 1 ] || return 0
+    _xmgv_id=$1
+    while [ "$_xmgv_id" -le "$2" ]; do
+        xmenu_main_item_hidden "$_xmgv_id" || return 0
+        _xmgv_id=$((_xmgv_id + 1))
+    done
+    return 1
+}
+
+xmenu_main_menu_item() {
+    if [ "${XMENU_EDITOR_MODE:-0}" = 1 ]; then
+        if xmenu_main_item_hidden "$1"; then
+            printf '\033[2;90m'
+            if [ "$_lang" = en ]; then menu_item "$@" '[hidden]'; else menu_item "$@" '[скрыт]'; fi
+        else
+            printf '%b' "$WHITE"
+            if [ "$_lang" = en ]; then menu_item "$@" '[visible]'; else menu_item "$@" '[виден]'; fi
+        fi
+        printf '%b' "$RESET"
+    elif ! xmenu_main_item_hidden "$1"; then
+        shift
+        _XMENU_MAIN_VISIBLE_NUMBER=$((_XMENU_MAIN_VISIBLE_NUMBER + 1))
+        menu_item "$_XMENU_MAIN_VISIBLE_NUMBER" "$@"
+    fi
+    return 0
+}
+
+xmenu_main_resolve_choice() {
+    _xmrc_requested=$1
+    case "$_xmrc_requested" in ''|*[!0-9]*) return 1 ;; esac
+    while [ "${_xmrc_requested#0}" != "$_xmrc_requested" ]; do _xmrc_requested=${_xmrc_requested#0}; done
+    [ -n "$_xmrc_requested" ] || _xmrc_requested=0
+    if [ "$_xmrc_requested" = 0 ]; then printf '0'; return 0; fi
+    _xmrc_action=1
+    _xmrc_visible=0
+    while [ "$_xmrc_action" -le 22 ]; do
+        if ! xmenu_main_item_hidden "$_xmrc_action"; then
+            _xmrc_visible=$((_xmrc_visible + 1))
+            if [ "$_xmrc_visible" = "$_xmrc_requested" ]; then
+                printf '%s' "$_xmrc_action"
+                return 0
+            fi
+        fi
+        _xmrc_action=$((_xmrc_action + 1))
+    done
+    return 1
+}
+
+xmenu_save_hidden_items() {
+    mkdir -p "$ROOT_DIR" || return 1
+    [ ! -L "$ROOT_DIR/hidden-menu-items" ] || return 1
+    _xme_tmp=$(mktemp "$ROOT_DIR/.hidden-menu-items.XXXXXX") || return 1
+    if ! {
+        for _xme_id in $XMENU_HIDDEN_ITEMS; do printf '%s\n' "$_xme_id"; done
+    } > "$_xme_tmp" || ! chmod 600 "$_xme_tmp" || ! mv -f "$_xme_tmp" "$ROOT_DIR/hidden-menu-items"; then
+        rm -f "$_xme_tmp"
+        _xme_tmp=''
+        return 1
+    fi
+    _xme_tmp=''
+}
+
+xmenu_editor_menu() (
+    _xme_tmp=''
+    trap '[ -z "$_xme_tmp" ] || rm -f "$_xme_tmp"' 0
+    set -f
+    XMENU_EDITOR_MODE=1
+    _xme_notice=''
+    while :; do
+        xmenu_load_hidden_items
+        _lang=$(get_ui_lang)
+        _XMENU_RENDER_WIDTH=$(terminal_width)
+        [ ! -t 1 ] || printf '\033[2J\033[H'
+        line
+        if [ "$_lang" = en ]; then
+            say "${BRIGHT_CYAN}Menu editor${RESET}"
+            say 'Enter numbers 1–22 separated by spaces to hide or restore items.'
+            say 'Dim items are hidden. Changes are saved automatically.'
+            say 'Editor numbers stay fixed; the main menu renumbers visible items.'
+            _xme_prompt="Numbers [${BRIGHT_CYAN}99 = show all${RESET}, Enter = back]: "
+        else
+            say "${BRIGHT_CYAN}Редактор меню${RESET}"
+            say 'Введите номера 1–22 через пробел, чтобы скрыть или вернуть пункты.'
+            say 'Приглушённые пункты скрыты. Изменения сохраняются автоматически.'
+            say 'Здесь номера постоянные; в главном меню — только видимые пункты подряд.'
+            _xme_prompt="Номера [${BRIGHT_CYAN}99 = показать все${RESET}, Enter = назад]: "
+        fi
+        [ -z "$_xme_notice" ] || say "${GREEN}$_xme_notice${RESET}"
+        _xme_notice=''
+        line
+        xmenu_render_main_items
+        line
+        _read_or_eof "$_xme_prompt" || return 0
+        _xme_input=$_read_value
+        case "$_xme_input" in ''|0) return 0 ;; esac
+        _xme_valid=1
+        _xme_selection=''
+        if [ "${#_xme_input}" -gt 256 ]; then _xme_valid=0
+        elif [ "$_xme_input" != 99 ]; then
+            for _xme_id in $_xme_input; do
+                case "$_xme_id" in [1-9]|1[0-9]|2[0-2]) : ;; *) _xme_valid=0; break ;; esac
+                case " $_xme_selection " in *" $_xme_id "*) continue ;; esac
+                _xme_selection="$_xme_selection $_xme_id"
+            done
+            [ -n "$_xme_selection" ] || _xme_valid=0
+        fi
+        if [ "$_xme_valid" != 1 ]; then
+            if [ "$_lang" = en ]; then say 'Use numbers 1–22, or 99 to show all.'
+            else say 'Допустимы номера 1–22 или 99, чтобы показать всё.'; fi
+            pause
+            continue
+        fi
+        if [ "$_xme_input" = 99 ]; then XMENU_HIDDEN_ITEMS=''
+        else
+            for _xme_id in $_xme_selection; do
+                if xmenu_main_item_hidden "$_xme_id"; then
+                    _xme_remaining=''
+                    for _xme_existing in $XMENU_HIDDEN_ITEMS; do
+                        [ "$_xme_existing" = "$_xme_id" ] || _xme_remaining="$_xme_remaining $_xme_existing"
+                    done
+                    XMENU_HIDDEN_ITEMS=$_xme_remaining
+                else XMENU_HIDDEN_ITEMS="$XMENU_HIDDEN_ITEMS $_xme_id"
+                fi
+            done
+        fi
+        if ! xmenu_save_hidden_items; then
+            if [ "$_lang" = en ]; then say "${RED}Could not save menu settings.${RESET}"
+            else say "${RED}Не удалось сохранить настройки меню.${RESET}"; fi
+            pause
+            return 1
+        fi
+        if [ "$_lang" = en ]; then _xme_notice='Saved.'; else _xme_notice='Сохранено.'; fi
+    done
+)
+
+xmenu_render_main_items() {
+    _lang=$(get_ui_lang)
+    _XMENU_MAIN_VISIBLE_NUMBER=0
+    if [ "$_lang" = en ]; then
+        if xmenu_main_group_visible 1 7; then
+        say "${PURPLE}[::]  Install / update:${RESET}"
+        xmenu_main_menu_item 1  'XKeen — Stable'
+        xmenu_main_menu_item 2  'XKeen UI — zxc-rv'
+        xmenu_main_menu_item 3  'XKeen UI — umarcheh001'
+        xmenu_main_menu_item 4  'nfqws2'
+        xmenu_main_menu_item 5  'nfqws v1 — step-by-step install / update'
+        xmenu_main_menu_item 6  'nfqws-web-keenetic'
+        xmenu_main_menu_item 7  'nfqws2-ui'
+        say ""
+        fi
+        if xmenu_main_group_visible 8 11; then
+        say "${PURPLE}[::]  Manual installation profiles:${RESET}"
+        xmenu_main_menu_item 8  'XKeen Auto (Mihomo + GeoIPSet + XKeen at startup)'
+        xmenu_main_menu_item 9  'XKeen Auto (Xray + GeoIPSet + XKeen at startup)'
+        xmenu_main_menu_item 10  'Mihomo + GeoIPSet + XKeen Auto + XKeen UI + nfqws2 + nfqws-web-keenetic'
+        xmenu_main_menu_item 11 'Xray + GeoIPSet + XKeen Auto + XKeen UI + nfqws2 + nfqws-web-keenetic'
+        say ""
+        fi
+        if xmenu_main_group_visible 12 12; then
+        say "${PURPLE}[::]  nfqws2 management:${RESET}"
+        xmenu_main_menu_item 12 'nfqws2 management'
+        say ""
+        fi
+        if xmenu_main_group_visible 13 17; then
+        say "${PURPLE}[::]  Utilities / diagnostics:${RESET}"
+        xmenu_main_menu_item 13 'Diagnostics'
+        xmenu_main_menu_item 14 'TG WS Proxy Rust'
+        xmenu_main_menu_item 15 'KeenKit'
+        xmenu_main_menu_item 16 'awg-manager'
+        xmenu_main_menu_item 17 'Other utilities'
+        say ""
+        fi
+        if xmenu_main_group_visible 18 22; then
+        say "${PURPLE}[::]  Maintenance / settings:${RESET}"
+        xmenu_main_menu_item 18 'Сменить язык: RU / EN (change language)'
+        xmenu_main_menu_item 19 'Remove components'
+        xmenu_main_menu_item 20 'Remove Xmenu'
+        xmenu_main_menu_item 21 'Update Xmenu'
+        xmenu_main_menu_item 22 'OPKG settings / Entware mirrors'
+        fi
+        if [ "${XMENU_EDITOR_MODE:-0}" = 1 ]; then
+            printf '%b' "$BRIGHT_CYAN"
+            menu_item 99 'Show all'
+            printf '%b' "$RESET"
+            menu_item 0 'Back'
+        else
+            menu_item 0 'Exit'
+        fi
+    else
+        if xmenu_main_group_visible 1 7; then
+        say "${PURPLE}[::]  Установка / обновление:${RESET}"
+        xmenu_main_menu_item 1  'XKeen — Stable'
+        xmenu_main_menu_item 2  'XKeen UI — zxc-rv'
+        xmenu_main_menu_item 3  'XKeen UI — umarcheh001'
+        xmenu_main_menu_item 4  'nfqws2'
+        xmenu_main_menu_item 5  'nfqws v1 — поэтапная установка / обновление'
+        xmenu_main_menu_item 6  'nfqws-web-keenetic'
+        xmenu_main_menu_item 7  'nfqws2-ui'
+        say ""
+        fi
+        if xmenu_main_group_visible 8 11; then
+        say "${PURPLE}[::]  Ручные настройки установки:${RESET}"
+        xmenu_main_menu_item 8  'XKeen Auto (Mihomo + GeoIPSet + XKeen в автозагрузке)'
+        xmenu_main_menu_item 9  'XKeen Auto (Xray + GeoIPSet + XKeen в автозагрузке)'
+        xmenu_main_menu_item 10  'Mihomo + GeoIPSet + XKeen Auto + XKeen UI + nfqws2 + nfqws-web-keenetic'
+        xmenu_main_menu_item 11 'Xray + GeoIPSet + XKeen Auto + XKeen UI + nfqws2 + nfqws-web-keenetic'
+        say ""
+        fi
+        if xmenu_main_group_visible 12 12; then
+        say "${PURPLE}[::]  Управление nfqws2:${RESET}"
+        xmenu_main_menu_item 12 'Управление nfqws2'
+        say ""
+        fi
+        if xmenu_main_group_visible 13 17; then
+        say "${PURPLE}[::]  Утилиты и диагностика:${RESET}"
+        xmenu_main_menu_item 13 'Диагностика'
+        xmenu_main_menu_item 14 'TG WS Proxy Rust'
+        xmenu_main_menu_item 15 'KeenKit'
+        xmenu_main_menu_item 16 'awg-manager'
+        xmenu_main_menu_item 17 'Прочие утилиты'
+        say ""
+        fi
+        if xmenu_main_group_visible 18 22; then
+        say "${PURPLE}[::]  Обслуживание и настройки:${RESET}"
+        xmenu_main_menu_item 18 'Сменить язык: RU / EN (change language)'
+        xmenu_main_menu_item 19 'Удаление компонентов'
+        xmenu_main_menu_item 20 'Удалить Xmenu'
+        xmenu_main_menu_item 21 'Обновить Xmenu'
+        xmenu_main_menu_item 22 'Настройки OPKG / зеркала Entware'
+        fi
+        if [ "${XMENU_EDITOR_MODE:-0}" = 1 ]; then
+            printf '%b' "$BRIGHT_CYAN"
+            menu_item 99 'Показать все'
+            printf '%b' "$RESET"
+            menu_item 0 'Назад'
+        else
+            menu_item 0 'Выход'
+        fi
+    fi
+
 }
 
 # ---------------------------- Component removal ----------------------------
@@ -10411,10 +10635,10 @@ main() {
         INTERRUPTED=0
         MENU_READING=1
         _menu_lang=$(get_ui_lang)
-        if [ "$_menu_lang" = en ]; then _prompt='[?] Select an option [S = service, U = check updates, Enter = exit]: '; else _prompt='[?] Выберите пункт [S = сервис, U = проверить обновление, Enter = выход]: '; fi
+        if [ "$_menu_lang" = en ]; then _prompt='[?] Option [S=service, U=updates, E=editor, Enter=exit]: '; else _prompt='[?] Пункт [S=сервис, U=обновление, E=редактор, Enter=выход]: '; fi
         if [ "$(terminal_width)" -lt 70 ]; then
-            if [ "$_menu_lang" = en ]; then _prompt='[?] Option [S, U, Enter=exit]: '
-            else _prompt='[?] Пункт [S, U, Enter=выход]: '; fi
+            if [ "$_menu_lang" = en ]; then _prompt='[?] Option [S, U, E, Enter=exit]: '
+            else _prompt='[?] Пункт [S, U, E, Enter=выход]: '; fi
         fi
         xmenu_read_menu_prompt "${LAVENDER}$_prompt${RESET}"
         _read_rc=$?
@@ -10435,9 +10659,10 @@ main() {
             return 0
         fi
         case "$_choice" in
-            1|2|3|4|5|6|7|8|9|10|11|13|14|15|16|17|19|21) invalidate_component_status_cache ;;
-        esac
-        case "$_choice" in
+            e|E)
+                xmenu_editor_menu
+                continue
+                ;;
             s|S)
                 xmenu_service_menu
                 continue
@@ -10450,6 +10675,14 @@ main() {
         esac
         case "$_choice" in
             *[!0-9]*) say "${RED}Нужно ввести номер пункта цифрами.${RESET}"; continue ;;
+        esac
+        _choice=$(xmenu_main_resolve_choice "$_choice") || {
+            if [ "$_menu_lang" = en ]; then say 'Choose a number from the visible menu.'
+            else say 'Выберите номер из видимого меню.'; fi
+            continue
+        }
+        case "$_choice" in
+            1|2|3|4|5|6|7|8|9|10|11|13|14|15|16|17|19|21) invalidate_component_status_cache ;;
         esac
         case "$_choice" in
             1) ensure_network && install_xkeen_stable_binary; pause ;;

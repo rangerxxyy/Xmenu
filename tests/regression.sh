@@ -326,9 +326,9 @@ grep -Fq "${CYAN}  ↑" "$test_dir/main-menu.txt" || fail 'update notice is not 
 escape=$(printf '\033')
 sed "s/$escape\[[0-9;]*m//g" "$test_dir/main-menu.txt" > "$test_dir/plain-menu.txt"
 update_line=$(grep -n '↑ Доступно обновление' "$test_dir/plain-menu.txt" | cut -d: -f1)
-grep -q 'Xmenu ◆ v1.4.4' "$test_dir/plain-menu.txt" || fail 'script version was not raised to 1.4.4'
-grep -q 'Выбери пункт 21 для установки' "$test_dir/plain-menu.txt" || fail 'update notice lost update action hint'
-LC_ALL=C awk '/Xmenu ◆ v1.4.4/ {
+grep -q 'Xmenu ◆ v1.4.5' "$test_dir/plain-menu.txt" || fail 'script version was not raised to 1.4.5'
+grep -q 'Обновить Xmenu' "$test_dir/plain-menu.txt" || fail 'update notice lost update action hint'
+LC_ALL=C awk '/Xmenu ◆ v1.4.5/ {
     match($0, /[^ ]/); if (RSTART-1 != 12) exit 1
     title_line=NR; found=1
 } title_line && NR == title_line + 1 && $0 !~ /^=+$/ {exit 1}

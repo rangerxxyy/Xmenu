@@ -6,7 +6,7 @@
 
 Установка компонентов, стратегии NFQWS, защищённый DNS, диагностика и обслуживание.
 
-[![Version](https://img.shields.io/badge/version-1.4.4-22d3ee?style=for-the-badge)](https://github.com/rangerxxyy/Xmenu/releases/tag/v1.4.4) [![Shell](https://img.shields.io/badge/POSIX-sh%20%2F%20BusyBox%20ash-8b5cf6?style=for-the-badge)](xmenu-v1.0.sh) [![License](https://img.shields.io/badge/license-MIT-10b981?style=for-the-badge)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.4.5-22d3ee?style=for-the-badge)](https://github.com/rangerxxyy/Xmenu/releases/tag/v1.4.5) [![Shell](https://img.shields.io/badge/POSIX-sh%20%2F%20BusyBox%20ash-8b5cf6?style=for-the-badge)](xmenu-v1.0.sh) [![License](https://img.shields.io/badge/license-MIT-10b981?style=for-the-badge)](LICENSE)
 
 [![Checks](https://github.com/rangerxxyy/Xmenu/actions/workflows/xmenu-shell-syntax.yml/badge.svg?branch=main)](https://github.com/rangerxxyy/Xmenu/actions/workflows/xmenu-shell-syntax.yml)
 
@@ -155,8 +155,15 @@ Xmenu работает поверх Entware: выполняет пакетные
 | --- | --- |
 | `S` | Открыть сервисное меню |
 | `U` | Проверить наличие обновления Xmenu |
+| `E` | Открыть редактор меню: скрыть или вернуть выбранные пункты |
 | `Enter` в главном меню | Выйти |
 | `0` в подменю | Вернуться назад |
+
+### Редактор главного меню
+
+Нажми **E** в приглашении главного меню. В редакторе можно ввести несколько постоянных номеров через пробел: выбранные пункты переключатся между видимыми и скрытыми. Скрытые строки отображаются приглушённым цветом, изменения сохраняются автоматически. В основном меню оставшиеся пункты каждый раз нумеруются подряд; на вызов действий это не влияет. Редактор всегда показывает постоянные номера **1–22**.
+
+**99 — Показать все** возвращает все пункты и выделен яркой бирюзой. **Enter** или **0** закрывает редактор. Настройка хранится в `/opt/etc/xmenu/hidden-menu-items`.
 
 ## Компоненты и профили
 
@@ -694,8 +701,11 @@ xmenu dns-check
 1. Dropbear Fix
 2. Сжать bin/sbin
 3. Discord Fix
+4. Обновить все пакеты (OPKG)
 0. Назад
 ```
+
+Пункт **4** сначала обновляет списки командой `opkg update`, затем обновляет установленные пакеты командой `opkg upgrade`. Перед запуском требуется подтверждение. Если `opkg update` завершается ошибкой, обновление пакетов не начинается; ошибки отдельных пакетов показываются выводом OPKG.
 
 ### Dropbear Fix
 
