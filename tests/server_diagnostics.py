@@ -15,6 +15,7 @@ import struct
 import subprocess
 import sys
 import threading
+import tempfile
 import time
 import types
 import unittest
@@ -27,6 +28,23 @@ code = source.split("<<'XMENU_SERVER_ENGINE'\n", 1)[1].split('\nXMENU_SERVER_ENG
 engine = types.ModuleType('server_diagnostics')
 sys.modules[engine.__name__] = engine
 exec(compile(code, '<server diagnostics>', 'exec'), engine.__dict__)
+
+
+class ApiTests(unittest.TestCase):
+    def test_api_lookup_does_not_apply_vps_probe_bypass_route(self):
+        sock = mock.Mock()
+        response = mock.Mock(status=200)
+        response.read.return_value = b'{"ip":"78.17.27.241","ports":[]}'
+        context = mock.Mock()
+        context.wrap_socket.return_value = sock
+        with mock.patch.object(engine, 'remaining', side_effect=lambda value: value), \
+             mock.patch.object(engine, 'END_TIME', time.monotonic() + 10), \
+             mock.patch.dict(engine.API_ADDRESSES, {'internetdb.shodan.io': '104.18.12.238'}), \
+             mock.patch.object(engine, 'connect', return_value=(sock, 1, None)) as connect, \
+             mock.patch.object(engine.ssl, 'create_default_context', return_value=context), \
+             mock.patch.object(engine.http.client, 'HTTPResponse', return_value=response):
+            self.assertEqual(engine.fetch_json('https://internetdb.shodan.io/78.17.27.241')['ip'], '78.17.27.241')
+        connect.assert_called_once_with('104.18.12.238', 443, 3, direct=False)
 
 
 def ipv4(payload, protocol=1, dst='1.1.1.1'):
@@ -174,7 +192,10 @@ class BypassTests(unittest.TestCase):
         snapshot = subprocess.run(['iptables-save', '-t', 'mangle'], capture_output=True)
         if snapshot.returncode or b'-j NFQUEUE' not in snapshot.stdout:
             self.skipTest('No active router NFQUEUE interception to bypass')
-        child = subprocess.Popen([sys.executable, '-c', code, '1.1.1.1', '--ports', '22', '--hops', '15', '--no-external', '--json'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        with tempfile.NamedTemporaryFile('w', encoding='utf-8', suffix='.py', delete=False) as script:
+            script.write(code)
+            script_path = script.name
+        child = subprocess.Popen([sys.executable, script_path, '1.1.1.1', '--ports', '22', '--hops', '15', '--no-external', '--json'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             tag = 'xmenu-server-' + str(child.pid) + '-'
             deadline = time.monotonic() + 8
@@ -194,6 +215,7 @@ class BypassTests(unittest.TestCase):
             if child.poll() is None:
                 child.kill()
                 child.wait()
+            os.unlink(script_path)
 
 
 class PresentationTests(unittest.TestCase):
@@ -209,7 +231,52 @@ class PresentationTests(unittest.TestCase):
         self.assertIn('доступен', engine.verdict(report)[0])
 
     def test_default_ports_cover_requested_discovery(self):
-        self.assertEqual(engine.DEFAULT_PORTS, [22, 80, 443, 8080, 8443, 2053, 2083, 2087, 2096, 2098, 31618])
+        self.assertEqual(engine.DEFAULT_PORTS, [22, 80, 443, 8080, 8443, 2053, 2083, 2096])
+        self.assertEqual(engine.discovery_targets({'ports': [2087, 2098, 31618, 38491]}, {}), [38491])
+
+    def test_tcp_timeout_explains_firewall_as_a_possibility(self):
+        report = sample_report()
+        report['route'].update(status='OK', interface='eth3', gateway='')
+        report['tcp'][443] = {'status': 'TIMEOUT', 'port_state': 'FILTERED', 'attempts': [{'status': 'TIMEOUT'}, {'status': 'TIMEOUT'}]}
+        report.update(ping={'status': 'SKIPPED', 'sent': 0, 'received': 0}, udp={}, http={}, tls={}, volume={'status': 'SKIPPED'}, services={}, elapsed=1, analysis=engine.classify(report))
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            engine.render_report(report)
+        rendered = output.getvalue()
+        self.assertIn('Ответ не пришёл: firewall/фильтр', rendered)
+        self.assertNotIn('причина неизвестна', rendered)
+
+    def test_quic_udp_443_detail_is_concise(self):
+        report = sample_report()
+        report['route'].update(status='OK', interface='eth3')
+        report.update(ping={'status': 'SKIPPED'}, udp={443: {'status': 'QUIC VN', 'reachable': True, 'ms': 35.8}}, ports=[443], http={}, controls={}, elapsed=1)
+        report['analysis'] = engine.classify(report)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            engine.render_report(report)
+        rendered = output.getvalue()
+        self.assertIn('Ответ на пробный пакет', rendered)
+        self.assertNotIn('HTTP/3 не проверен', rendered)
+
+    def test_historical_ports_explain_why_no_extra_ports_are_checked(self):
+        report = sample_report()
+        report['route'].update(status='OK', interface='eth3')
+        report.update(ping={'status': 'SKIPPED'}, discovery={'status': 'FOUND', 'ports': [22, 80, 443, 8443], 'selected_ports': []}, udp={}, ports=[22, 80, 443], http={}, controls={}, elapsed=1)
+        report['analysis'] = engine.classify(report)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            engine.render_report(report)
+        rendered = output.getvalue()
+        self.assertIn('Есть в базе', rendered)
+        self.assertIn('В базе: 22, 80, 443, 8443', rendered)
+        self.assertIn('новых для проверки нет', rendered)
+
+    def test_volume_check_label_uses_its_own_color(self):
+        report = sample_report()
+        report['route'].update(status='OK', interface='eth3')
+        report.update(ping={'status': 'SKIPPED'}, udp={}, ports=[443], http={}, controls={}, volume={'status': 'VOLUME STALL', 'replies': 3, 'sent': 16000}, elapsed=1)
+        report['analysis'] = engine.classify(report)
+        with mock.patch.object(engine, 'COLOR', True), contextlib.redirect_stdout(io.StringIO()) as output:
+            engine.render_report(report)
+        self.assertIn('\x1b[35;1mОбрыв на 16 КБ', output.getvalue())
+        self.assertIn('\x1b[31;1mЕсть обрыв', output.getvalue())
 
     def test_trace_cells_explain_missing_hops(self):
         self.assertEqual(engine.trace_cell({'reached': False, 'status': 'PROHIBITED', 'hops': []}, 0), '')
@@ -293,6 +360,7 @@ class LocalNetworkTests(unittest.TestCase):
         self.assertEqual(result['status'], 'QUIC VN')
         self.assertTrue(result['reachable'])
         self.assertEqual(result['versions'], [1])
+        self.assertIn('QUIC/TLS', result['detail'])
 
     def test_quic_rejects_unrelated_or_invalid_versions(self):
         packet, dcid, scid, version = engine.quic_probe_packet()
@@ -698,7 +766,6 @@ class AdvancedTests(unittest.TestCase):
         fetch.assert_not_called()
         report = json.loads(output.getvalue())
         self.assertFalse(report['settings']['external_allowed'])
-        self.assertEqual(report['tcp']['2053']['status'], 'SKIPPED')
         self.assertFalse(report['dependencies']['curl'])
         self.assertFalse(report['dependencies']['jq'])
 

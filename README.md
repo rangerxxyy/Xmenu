@@ -6,7 +6,7 @@
 
 Установка компонентов, стратегии NFQWS, защищённый DNS, диагностика и обслуживание.
 
-[![Version](https://img.shields.io/badge/version-1.4.5-22d3ee?style=for-the-badge)](https://github.com/rangerxxyy/Xmenu/releases/tag/v1.4.5) [![Shell](https://img.shields.io/badge/POSIX-sh%20%2F%20BusyBox%20ash-8b5cf6?style=for-the-badge)](xmenu-v1.0.sh) [![License](https://img.shields.io/badge/license-MIT-10b981?style=for-the-badge)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.4.6-22d3ee?style=for-the-badge)](https://github.com/rangerxxyy/Xmenu/releases/tag/v1.4.6) [![Shell](https://img.shields.io/badge/POSIX-sh%20%2F%20BusyBox%20ash-8b5cf6?style=for-the-badge)](xmenu-v1.0.sh) [![License](https://img.shields.io/badge/license-MIT-10b981?style=for-the-badge)](LICENSE)
 
 [![Checks](https://github.com/rangerxxyy/Xmenu/actions/workflows/xmenu-shell-syntax.yml/badge.svg?branch=main)](https://github.com/rangerxxyy/Xmenu/actions/workflows/xmenu-shell-syntax.yml)
 
@@ -658,6 +658,16 @@ Cloudflare   32.0 мс   28.7 мс    5.1 мс   1.1.1.1 → CLOUDFLARE    0/5
 ```sh
 xmenu dns-check
 ```
+
+### Новое в 1.4.6
+
+- **Управление XKeen** появляется только при наличии установленного XKeen. Раздел открывает штатный выбор канала Stable / Dev и обновление XKeen с подтверждением. При доступном пункте он располагается после управления nfqws2; номера последующих действий смещаются автоматически и учитывают скрытые пункты редактора.
+- **Диагностика VPS:** проверка TLS 1.2 и TLS 1.3 с введённым SNI, сопоставление домена с IP и проверка сертификата. Результаты SNI выделяются отдельным цветом.
+- **Проверка обрыва передачи в VPS:** серия запросов в одном TLS-соединении, отдельная строка «Обрыв на 16 КБ» и понятный итог. Если сервер закрывает соединение раньше завершения пробы, результат считается неподтверждённым.
+- **Порты и UDP/443:** исключены 2087, 2098 и 31618; остальные основные порты проверяются сразу. Краткий результат QUIC показывает получение Version Negotiation, не выдавая его за полный сеанс HTTP/3.
+- **Поиск портов и оформление:** запросы InternetDB используют обычный маршрут для API; таблица поясняет найденные в базе и дополнительно проверяемые порты. Уточнены сообщения о firewall, отказах и отсутствии ответа, сокращены длинные строки.
+
+Отдельного раздела массовой диагностики 16 КБ в этом релизе нет. Проверка одной цели доступна внутри диагностики VPS. На роутерах с XKeen номера главного меню могут отличаться от примеров ниже: ориентируйтесь на названия разделов.
 
 ### Доступность VPS-сервера
 

@@ -1,6 +1,6 @@
 #!/bin/sh
-# Xmenu ◆ v1.4.5 — Entware / BusyBox ash
-APP_VERSION="1.4.5"
+# Xmenu ◆ v1.4.6 — Entware / BusyBox ash
+APP_VERSION="1.4.6"
 # XKEEN_MENU_AUTO_YES=1/true/yes/on отключает подтверждение только для NFQWS2 UI в install-all.
 ROOT_DIR="/opt/etc/xmenu"
 BACKUP_DIR="$ROOT_DIR/backups"
@@ -2807,7 +2807,7 @@ def request(url, ip, transport, direct=False, accept='*/*', read_limit=16384):
             data['cert_expires'] = certificate.get('notAfter')
         data['stage'] = 'HTTP'
         target = urllib.parse.urlunsplit(('', '', parsed.path or '/', parsed.query, ''))
-        headers = 'GET ' + target + ' HTTP/1.1\r\nHost: ' + parsed.netloc + '\r\nUser-Agent: Xmenu/1.4.5\r\nAccept: ' + accept + '\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n'
+        headers = 'GET ' + target + ' HTTP/1.1\r\nHost: ' + parsed.netloc + '\r\nUser-Agent: Xmenu/1.4.6\r\nAccept: ' + accept + '\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n'
         sock.settimeout(transport.remaining(min(3, max(.001, deadline - time.monotonic()))))
         started = time.monotonic()
         sock.sendall(headers.encode('ascii'))
@@ -4448,7 +4448,8 @@ import datetime
 
 
 COLOR = sys.stdout.isatty() and os.environ.get('TERM') != 'dumb'
-DEFAULT_PORTS = [22, 80, 443, 8080, 8443, 2053, 2083, 2087, 2096, 2098, 31618]
+DEFAULT_PORTS = [22, 80, 443, 8080, 8443, 2053, 2083, 2096]
+EXCLUDED_DISCOVERY_PORTS = {2087, 2098, 31618}
 BYPASS_MARK = 0
 INPUT_CHAINS = []
 FLOW_RULES = []
@@ -4461,8 +4462,6 @@ END_TIME = float('inf')
 WAN_INTERFACE = ''
 ACTIVE_SOCKETS = weakref.WeakSet()
 SOCKET_LOCK = threading.RLock()
-
-
 def remaining(timeout):
     if CANCEL.is_set():
         raise OSError(errno.ECANCELED, 'Проверка остановлена')
@@ -4809,7 +4808,7 @@ def prepare_socket(sock, direct=True):
     return sock
 
 
-def connect(ip, port, timeout):
+def connect(ip, port, timeout, direct=True):
     if CANCEL.is_set():
         raise OSError(errno.ECANCELED, 'Проверка отменена')
     deadline = min(END_TIME, time.monotonic() + timeout)
@@ -4818,7 +4817,7 @@ def connect(ip, port, timeout):
         ACTIVE_SOCKETS.add(sock)
     guard = None
     try:
-        prepare_socket(sock)
+        prepare_socket(sock, direct=direct)
         sock.settimeout(remaining(timeout))
         sock.bind(('::' if family(ip) == socket.AF_INET6 else '0.0.0.0', 0))
         guard = FlowGuard(ip, 'tcp', sock.getsockname()[1], port)
@@ -5283,6 +5282,62 @@ def http_probe(ip, port, secure=False, sni=''):
             guard.close()
 
 
+def volume_probe(ip, port=443, sni=''):
+    # Small HTTP responses with large request headers, reused on one TLS connection.
+    # This mirrors the panel's address-based 16–20 KB probe without downloading files.
+    pad_bytes = 4000
+    requests = 12
+    host = sni or 'example.com'
+    sock = None
+    guard = None
+    sent = replies = 0
+    codes = []
+    stage = 'TCP'
+    probe_deadline = min(END_TIME, time.monotonic() + 8)
+    try:
+        sock, _, guard = connect(ip, port, remaining(4))
+        sock.settimeout(remaining(4))
+        stage = 'TLS'
+        context = ssl._create_unverified_context()
+        sock = context.wrap_socket(sock, server_hostname=host)
+        with SOCKET_LOCK:
+            ACTIVE_SOCKETS.add(sock)
+        stage = 'HTTP'
+        for index in range(requests):
+            if CANCEL.is_set():
+                raise OSError(errno.ECANCELED, 'Проверка отменена')
+            if probe_deadline - time.monotonic() <= 0:
+                raise socket.timeout('Лимит времени одной пробы исчерпан')
+            pad = ('x' * pad_bytes)
+            request = ('HEAD /?xmenu_probe=' + str(index) + ' HTTP/1.1\r\nHost: ' + host
+                       + '\r\nX-Pad: ' + pad + '\r\nConnection: keep-alive\r\n\r\n').encode('ascii')
+            sock.settimeout(max(.05, min(2, probe_deadline - time.monotonic(), remaining(8))))
+            sock.sendall(request)
+            sent += len(request)
+            response = http.client.HTTPResponse(sock, method='HEAD')
+            response.begin()
+            response.read()
+            replies += 1
+            codes.append(response.status)
+            if response.will_close and index + 1 < requests:
+                return {'status': 'VOLUME INCONCLUSIVE', 'detail': f'Сервер закрыл соединение после {replies} ответов; передано {sent} байт, объём не проверить', 'sent': sent, 'replies': replies, 'codes': codes}
+        return {'status': 'VOLUME OK', 'detail': f'Получены все {replies} ответов; передано около {sent} байт в одном TLS-соединении', 'sent': sent, 'replies': replies, 'codes': codes}
+    except (TimeoutError, socket.timeout):
+        status = 'VOLUME STALL' if replies > 0 and sent >= 16384 else 'VOLUME INCONCLUSIVE'
+        detail = (f'После {replies} ответов передано {sent} байт; TLS-соединение зависло' if status == 'VOLUME STALL'
+                  else f'Тайм-аут на этапе {stage}; получено {replies} ответов, передано {sent} байт')
+        return {'status': status, 'detail': detail, 'sent': sent, 'replies': replies, 'codes': codes}
+    except ssl.SSLError as exc:
+        return {'status': 'VOLUME INCONCLUSIVE', 'detail': 'TLS-проба не прошла: ' + clean(str(exc))[:120], 'sent': sent, 'replies': replies, 'codes': codes}
+    except OSError as exc:
+        return {'status': 'VOLUME INCONCLUSIVE', 'detail': 'Проба прервана на этапе ' + stage + ': ' + clean(str(exc))[:120], 'sent': sent, 'replies': replies, 'codes': codes}
+    finally:
+        if sock:
+            sock.close()
+        if guard:
+            guard.close()
+
+
 def tcp_packet(source, target, source_port, dest_port, sequence):
     header = struct.pack('!HHIIBBHHH', source_port, dest_port, sequence, 0, 5 << 4, 2, 64240, 0, 0)
     version = ipaddress.ip_address(target).version
@@ -5542,6 +5597,61 @@ def tls_confirm(ip, port, version):
     return dict(second, attempts=[first, second], unstable=first['status'] != second['status'])
 
 
+def sni_dns_probe(host, target_ip):
+    program = 'import socket,json,sys; print(json.dumps(sorted({v[4][0] for v in socket.getaddrinfo(sys.argv[1],None,0,socket.SOCK_STREAM)})))'
+    try:
+        response = subprocess.run([sys.executable, '-c', program, host], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=remaining(5))
+        if response.returncode:
+            raise OSError('DNS не вернул адрес')
+        addresses = json.loads(response.stdout.decode('utf-8', 'replace'))
+        target = ipaddress.ip_address(target_ip)
+        normalized = sorted({str(ipaddress.ip_address(value.split('%', 1)[0])) for value in addresses})
+        matches = str(target) in normalized
+        return {'status': 'SNI MATCH' if matches else 'SNI MISMATCH', 'addresses': normalized[:12], 'matches_target': matches}
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        return {'status': 'DNS ERROR', 'addresses': [], 'matches_target': False, 'detail': clean(str(exc))[:90]}
+
+
+def tls_sni_once(ip, port, version, sni, verify_certificate):
+    sock = guard = None
+    connected = False
+    try:
+        sock, elapsed, guard = connect(ip, port, remaining(4))
+        connected = True
+        context = ssl.create_default_context() if verify_certificate else ssl._create_unverified_context()
+        context.minimum_version = context.maximum_version = version
+        sock.settimeout(remaining(4))
+        sock = context.wrap_socket(sock, server_hostname=sni)
+        with SOCKET_LOCK:
+            ACTIVE_SOCKETS.add(sock)
+        return {'status': 'TLS OK', 'tcp_open': True, 'protocol': sock.version(), 'verified': verify_certificate}
+    except ssl.SSLCertVerificationError as exc:
+        message = getattr(exc, 'verify_message', '') or str(exc)
+        return {'status': 'TLS CERT', 'tcp_open': connected, 'certificate_error': clean(message)[:100]}
+    except ssl.SSLError as exc:
+        return {'status': 'PROTOCOL_FAILURE', 'tcp_open': connected, 'error': clean(str(exc))[:100]}
+    except OSError as exc:
+        return {'status': 'PROTOCOL_FAILURE' if connected else network_error(exc), 'tcp_open': connected, 'error': clean(str(exc))[:100]}
+    finally:
+        if sock:
+            sock.close()
+        if guard:
+            guard.close()
+
+
+def tls_sni_confirm(ip, port, version, sni):
+    verified = tls_sni_once(ip, port, version, sni, True)
+    if verified['status'] == 'TLS OK':
+        return dict(verified, detail='SNI принят; сертификат подтверждён для имени')
+    if verified['status'] != 'TLS CERT' or CANCEL.is_set() or END_TIME - time.monotonic() < 2:
+        return dict(verified, detail=verified.get('error') or verified.get('certificate_error') or status_text(verified['status']))
+    unverified = tls_sni_once(ip, port, version, sni, False)
+    if unverified['status'] == 'TLS OK':
+        return {'status': 'TLS CERT', 'tcp_open': True, 'protocol': unverified.get('protocol'), 'verified': False,
+                'detail': 'SNI/TLS ответил; сертификат не подтверждён: ' + verified['certificate_error']}
+    return dict(unverified, detail='Не удалось подтвердить SNI-handshake; сертификат: ' + verified['certificate_error'])
+
+
 class ApiHTTPError(OSError):
     def __init__(self, status):
         self.status = status
@@ -5581,7 +5691,7 @@ def fetch_json(url, timeout=6, payload=None):
         API_ADDRESSES[parsed.hostname] = ip
     sock = guard = timer = response = None
     try:
-        sock, elapsed, guard = connect(ip, 443, budget(3))
+        sock, elapsed, guard = connect(ip, 443, budget(3), direct=False)
         sock.settimeout(budget())
         sock = ssl.create_default_context().wrap_socket(sock, server_hostname=parsed.hostname)
         with SOCKET_LOCK:
@@ -5596,7 +5706,7 @@ def fetch_json(url, timeout=6, payload=None):
         timer.start()
         path = urllib.parse.urlunsplit(('', '', parsed.path or '/', parsed.query, ''))
         data = json.dumps(payload).encode('utf-8') if payload is not None else b''
-        headers = ('POST' if payload is not None else 'GET') + ' ' + path + ' HTTP/1.1\r\nHost: ' + parsed.hostname + '\r\nAccept: application/json\r\nUser-Agent: Xmenu/1.4.5\r\nConnection: close\r\n'
+        headers = ('POST' if payload is not None else 'GET') + ' ' + path + ' HTTP/1.1\r\nHost: ' + parsed.hostname + '\r\nAccept: application/json\r\nUser-Agent: Xmenu/1.4.6\r\nConnection: close\r\n'
         if payload is not None:
             headers += 'Content-Type: application/json\r\nContent-Length: ' + str(len(data)) + '\r\n'
         sock.sendall((headers + '\r\n').encode('ascii') + data)
@@ -5650,7 +5760,7 @@ def discover_ports(ip):
 
 
 def discovery_targets(discovery, local):
-    available = [p for p in discovery.get('ports', []) if p not in local or local[p]['status'] == 'SKIPPED']
+    available = [p for p in discovery.get('ports', []) if p not in EXCLUDED_DISCOVERY_PORTS and (p not in local or local[p]['status'] == 'SKIPPED')]
     available.sort(key=lambda p: (p in DEFAULT_PORTS, p))
     chosen = []
     count = len(local)
@@ -6051,7 +6161,7 @@ def verdict(report):
 
 
 def status_text(status):
-    extra = {'FOUND': 'Найдены порты', 'REVIEW': 'Есть правила', 'STUN REPLY': 'STUN ответил', 'TIMESTAMP REPLY': 'ICMP ответил', 'VISIBLE': 'Маршрут виден', 'NOT VISIBLE': 'Не наблюдается', 'VALID': 'ROA корректен', 'INVALID': 'Проверьте ROA', 'BANNER REPLY': 'Сервис ответил'}
+    extra = {'FOUND': 'Есть в базе', 'REVIEW': 'Есть правила', 'STUN REPLY': 'STUN ответил', 'TIMESTAMP REPLY': 'ICMP ответил', 'VISIBLE': 'Маршрут виден', 'NOT VISIBLE': 'Не наблюдается', 'VALID': 'ROA корректен', 'INVALID': 'Проверьте ROA', 'BANNER REPLY': 'Сервис ответил', 'VOLUME OK': 'Нет обрыва', 'VOLUME STALL': 'Есть обрыв', 'VOLUME INCONCLUSIVE': 'Не проверен', 'SNI MATCH': 'IP в DNS', 'SNI MISMATCH': 'IP нет в DNS', 'DNS ERROR': 'Ошибка DNS'}
     if status in extra:
         return extra[status]
     return {'OK': 'Работает', 'OPEN': 'Доступен', 'SSH': 'Доступен', 'TIMEOUT': 'Нет ответа',
@@ -6147,7 +6257,7 @@ def run_stage(report, title, jobs, quiet=False):
 
 
 def render_report(report):
-    columns = max(60, min(108, shutil.get_terminal_size((100, 24)).columns))
+    columns = max(60, min(132, shutil.get_terminal_size((100, 24)).columns))
     print(paint('Проверка блокировки IP · ' + report['ip']))
     path = report['path']
     print('Интерфейс: ' + (path.get('interface') or 'не подтверждён') + ' · исходный IP: ' + (path.get('source') or 'не определён'))
@@ -6156,17 +6266,26 @@ def render_report(report):
     for owner in network.get('asns', [])[:3]:
         print('ASN: ' + paint('AS' + str(owner['asn']), '33;1') + ' · Хостер: ' + paint(fit(owner.get('holder') or 'не определён', columns - 34), '35;1'))
     rows = []
-    def add(method, status, detail, ms=None):
-        good = status in ('OK', 'OPEN', 'REPLY', 'QUIC VN', 'SSH', 'ANNOUNCED', 'TLS OK', 'STUN REPLY', 'TIMESTAMP REPLY', 'VISIBLE', 'VALID', 'BANNER REPLY') or status.startswith('HTTP ')
-        color = '36;1' if status == 'FOUND' else '32;1' if good else '90' if status in ('SKIPPED', 'INCONCLUSIVE', 'NO DATA', 'UNKNOWN', 'PENDING') else '33;1' if status in ('TLS CERT', 'PARTIAL', 'REFUSED', 'PORT CLOSED', 'CLOSED', 'OPEN_FILTERED', 'INVALID', 'NOT VISIBLE', 'REVIEW') else '31;1'
-        rows.append(([method, status_text(status), (f'{ms:.1f} мс · ' if ms is not None else '') + str(detail or 'Нет дополнительных сведений')], color))
+    def add(method, status, detail, ms=None, method_color='36;1'):
+        good = status in ('OK', 'OPEN', 'REPLY', 'QUIC VN', 'SSH', 'ANNOUNCED', 'TLS OK', 'STUN REPLY', 'TIMESTAMP REPLY', 'VISIBLE', 'VALID', 'BANNER REPLY', 'VOLUME OK', 'SNI MATCH') or status.startswith('HTTP ')
+        color = '36;1' if status == 'FOUND' else '32;1' if good else '90' if status in ('SKIPPED', 'INCONCLUSIVE', 'NO DATA', 'UNKNOWN', 'PENDING') else '33;1' if status in ('TLS CERT', 'PARTIAL', 'REFUSED', 'PORT CLOSED', 'CLOSED', 'OPEN_FILTERED', 'INVALID', 'NOT VISIBLE', 'REVIEW', 'VOLUME INCONCLUSIVE', 'SNI MISMATCH', 'DNS ERROR') else '31;1'
+        rows.append(([method, status_text(status), (f'{ms:.1f} мс · ' if ms is not None else '') + str(detail or 'Нет дополнительных сведений')], [method_color, color, color]))
     route_info = report['route']
     route_detail = (route_info.get('interface', '') + (' → ' + route_info['gateway'] if route_info.get('gateway') else '')).strip()
     add('Маршрут', route_info['status'], route_detail or route_info.get('detail', ''))
     historical = report.get('discovery', {})
     if historical.get('status') != 'SKIPPED' and historical:
         chosen = historical.get('selected_ports', [])
-        add('Поиск портов', historical.get('status', 'NO DATA'), 'Ранее: ' + ', '.join(map(str, chosen)) if chosen else 'Новых портов нет' if historical.get('status') == 'FOUND' else 'InternetDB: API недоступен' if historical.get('status') in ('API ERROR', 'ERROR') else 'InternetDB: запись об IP не найдена')
+        if historical.get('status') == 'FOUND':
+            known = historical.get('ports', [])
+            known_text = ', '.join(map(str, known[:8])) + (', …' if len(known) > 8 else '')
+            detail = 'В базе: ' + known_text if known_text else 'В базе есть сведения о портах'
+            detail += ' · проверяются дополнительно: ' + ', '.join(map(str, chosen)) if chosen else ' · новых для проверки нет'
+        elif historical.get('status') in ('API ERROR', 'ERROR'):
+            detail = 'InternetDB: API недоступен'
+        else:
+            detail = 'InternetDB: запись об IP не найдена'
+        add('Поиск портов', historical.get('status', 'NO DATA'), detail)
     if report.get('timestamp'):
         value = report['timestamp']
         add('ICMP Timestamp', value['status'], 'ответ на отдельный тип ICMP' if value.get('reachable') else 'ответ не получен; это не признак бана', value.get('ms'))
@@ -6187,9 +6306,23 @@ def render_report(report):
         add(label, value['status'], detail)
     for port, value in report['tcp'].items():
         state = value.get('port_state', 'UNKNOWN')
-        detail = {'OPEN': 'соединение установлено', 'CLOSED': 'RST: закрыт или отклонён', 'FILTERED': 'причина неизвестна', 'ERROR': 'ошибка проверки', 'UNKNOWN': 'не проверялся'}.get(state, state)
+        detail = {
+            'OPEN': 'TCP-соединение установлено',
+            'CLOSED': 'RST/отказ: порт закрыт или firewall отклонил',
+            'FILTERED': 'Ответ не пришёл: firewall/фильтр или служба молчит',
+            'ERROR': 'Не удалось выполнить пробу',
+            'UNKNOWN': 'Проба не завершена',
+        }.get(state, state)
         if value['status'] == 'PROHIBITED':
-            detail = 'получен запрет'
+            detail = 'Получен явный запрет от узла или сетевого firewall'
+        elif value['status'] == 'NO ROUTE':
+            detail = 'Для IP VPS не найден маршрут'
+        elif value['status'] == 'BYPASS FAIL':
+            detail = 'Не удалось подтвердить прямой сетевой путь'
+        elif value['status'] == 'NO PERMISSION':
+            detail = 'Недостаточно прав для проверки'
+        elif value['status'] == 'CANCELLED':
+            detail = 'Проверка остановлена по лимиту времени'
         attempts = value.get('attempts', [])
         if len(attempts) > 1:
             detail += ' · попыток ' + str(len(attempts))
@@ -6197,7 +6330,18 @@ def render_report(report):
             detail += ' · нестабильно'
         add('TCP/' + str(port), value['status'], detail, value.get('ms'))
     for port, value in report['udp'].items():
-        detail = 'QUIC ответил' if value['status'] == 'QUIC VN' else 'UDP ответил; QUIC не подтверждён' if value.get('reachable') and port == 443 else 'сервис ответил' if value.get('reachable') else 'порт закрыт / отклонён' if value['status'] == 'PORT CLOSED' else 'сервис отсутствует или фильтруется'
+        if value['status'] == 'QUIC VN':
+            detail = 'Ответ на пробный пакет'
+        elif value.get('reachable') and port == 443:
+            detail = 'UDP-ответ получен; QUIC не подтверждён'
+        elif value.get('reachable'):
+            detail = 'UDP-ответ получен'
+        elif value['status'] == 'PORT CLOSED':
+            detail = 'ICMP-отказ: службы нет или firewall отклонил пакет'
+        elif value['status'] == 'NO REPLY':
+            detail = 'Ответа нет: firewall/фильтр или UDP-служба не отвечает'
+        else:
+            detail = 'UDP-проба не завершена: ' + status_text(value['status'])
         if value['status'] == 'STUN REPLY':
             detail = 'STUN: код ' + str(value['error_code']) if value.get('error_code') else 'STUN Binding подтвердил ответ'
         if value.get('reachable') and isinstance(value.get('attempts'), int) and value['attempts'] > 1:
@@ -6212,9 +6356,35 @@ def render_report(report):
     for port, versions in report.get('tls', {}).items():
         for version, value in versions.items():
             add('TLS ' + version + '/' + str(port), value['status'], 'без SNI; handshake прошёл' if value['status'] == 'TLS OK' else value.get('error') or status_text(value['status']))
+    if report.get('sni_name'):
+        dns = report.get('sni_dns', {})
+        dns_ips = ', '.join(dns.get('addresses', [])) or 'адреса не получены'
+        dns_detail = ('VPS-IP найден: ' if dns.get('matches_target') else 'VPS-IP не найден; DNS: ') + dns_ips if dns.get('status') in ('SNI MATCH', 'SNI MISMATCH') else dns.get('detail', 'DNS-ответ не получен')
+        add('SNI DNS', dns.get('status', 'DNS ERROR'), dns_detail, method_color='35;1')
+        for version in ('1.2', '1.3'):
+            value = report.get('sni_tls', {}).get(version)
+            if value:
+                detail = value.get('detail') or ('SNI принят; сертификат подтверждён' if value.get('verified') else status_text(value['status']))
+                add('SNI TLS ' + version + '/443', value['status'], detail, method_color='35;1')
+            else:
+                add('SNI TLS ' + version + '/443', 'SKIPPED', 'TCP/443 недоступен', method_color='35;1')
     for port, value in report['http'].items():
         detail = 'TLS есть; сертификат не принят' if value['status'] == 'TLS CERT' else 'HTTP-сервер ответил' if value['status'].startswith('HTTP ') else value.get('detail', '')
         add('HTTPS/' + str(port) if port == 443 else 'HTTP/' + str(port), value['status'], detail)
+    volume = report.get('volume', {})
+    volume_status = volume.get('status', 'SKIPPED')
+    volume_bytes = int(volume.get('sent') or 0)
+    volume_replies = int(volume.get('replies') or 0)
+    if volume_status == 'VOLUME OK':
+        volume_detail = f'{volume_replies}/12 ответов · передано {volume_bytes // 1024} КБ'
+    elif volume_status == 'VOLUME STALL':
+        volume_detail = f'обрыв после {volume_replies} ответов · передано {volume_bytes // 1024} КБ'
+    elif volume_status == 'VOLUME INCONCLUSIVE':
+        volume_detail = 'результат не подтверждён'
+    else:
+        volume_status = 'SKIPPED'
+        volume_detail = 'проверка не запускалась'
+    add('Обрыв на 16 КБ', volume_status, volume_detail, method_color='35;1')
     control_open = sum(v['status'] == 'OPEN' for v in report['controls'].values())
     add('Контроль сети', 'OK' if control_open else 'NO REPLY', str(control_open) + '/' + str(len(report['controls'])) + ' контрольных TCP/443')
     if 'bgp' in report:
@@ -6247,10 +6417,18 @@ def render_report(report):
     print(paint(title, result_color))
     for message in analysis['messages']:
         print(paint(message, result_color))
+    volume_summary = {
+        'VOLUME OK': ('Обрыв не обнаружен', '32;1'),
+        'VOLUME STALL': ('Есть обрыв при передаче данных', '31;1'),
+        'VOLUME INCONCLUSIVE': ('Не удалось достоверно проверить обрыв', '33;1'),
+        'SKIPPED': ('Проверка обрыва не выполнялась', '90'),
+    }
+    volume_label, volume_color = volume_summary.get(volume_status, volume_summary['SKIPPED'])
+    print(paint('Итог проверки 16 КБ: ' + volume_label + '.', volume_color))
     if analysis.get('suspected_cause') == 'PORT_NO_RESPONSE':
         unanswered = [str(port) for port, value in report['tcp'].items() if value['status'] in ('TIMEOUT', 'PROHIBITED') and len(value.get('attempts', [])) >= 2]
         print(paint('Без ответа: TCP ' + ', '.join(unanswered) + '.', '33'))
-        print('Причина отсутствия ответа не установлена: сервис может отсутствовать или фильтроваться.')
+        print('Возможны: служба не запущена, firewall фильтрует трафик или теряются пакеты.')
     if report.get('deadline_reached'):
         print(paint('Достигнут лимит времени: часть проверок не завершена.', '33'))
     if not report.get('cleanup_ok', True):
@@ -6261,7 +6439,7 @@ def render_report(report):
 def main():
     global BYPASS_MARK, END_TIME, WAN_INTERFACE
     parser = argparse.ArgumentParser(description='Xmenu: проверка блокировки IP VPS')
-    parser.add_argument('target')
+    parser.add_argument('target', nargs='?')
     parser.add_argument('--ports', default='')
     parser.add_argument('--sni', default='')
     parser.add_argument('--hops', type=int, default=15)
@@ -6270,14 +6448,26 @@ def main():
     parser.add_argument('--details', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--json', action='store_true')
     args = parser.parse_args()
+    if not args.target:
+        parser.error('укажите публичный IP VPS')
     parts = args.target.split()
     ip = public_target(parts[0] if parts else '')
     address = ipaddress.ip_address(ip)
     ports = list(dict.fromkeys(int(v) for v in (args.ports.replace(',', ' ').split() if args.ports else parts[1:] or DEFAULT_PORTS)))
     if not 1 <= len(ports) <= 16 or any(not 1 <= p <= 65535 for p in ports) or not 1 <= args.hops <= 15 or not 20 <= args.timeout <= 180:
         raise ValueError('Нужно 1–16 портов 1–65535; hops 1–15; timeout 20–180 секунд')
-    if args.sni and (len(args.sni) > 253 or not re.fullmatch(r'[A-Za-z0-9.-]+', args.sni)):
-        raise ValueError('Некорректное имя SNI')
+    args.sni = args.sni.strip().rstrip('.').lower()
+    if args.sni:
+        try:
+            ipaddress.ip_address(args.sni)
+        except ValueError:
+            pass
+        else:
+            raise ValueError('Для SNI укажите доменное имя, не IP-адрес')
+        labels = args.sni.split('.')
+        valid_label = lambda label: bool(re.fullmatch(r'[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?', label))
+        if len(args.sni) > 253 or not all(valid_label(label) for label in labels):
+            raise ValueError('Некорректное имя SNI: используйте домен или punycode')
     private = args.no_external
     if not private:
         ports = list(dict.fromkeys(ports + [443, 22]))
@@ -6293,18 +6483,18 @@ def main():
     path_route = inspect_route(ip, path)
     path['local_filter'] = inspect_filter(ip, path)
     skipped = lambda port: {'status': 'SKIPPED', 'port_state': 'UNKNOWN', 'ms': None, 'port': port, 'attempts': []}
-    report = {'schema_version': 2, 'version': '1.4.5', 'generated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'ip': ip, 'ports': ports, 'path': path, 'route': path_route, 'tcp': {p: skipped(p) for p in ports}, 'udp': {}, 'http': {}, 'tls': {}, 'syn': {}, 'services': {}, 'discovery': {'status': 'SKIPPED', 'ports': []}, 'routing': {}, 'controls': {}, 'traces': {}, 'external': [], 'external_status': 'DISABLED' if private else 'NOT_NEEDED', 'stages': [], 'errors': [], 'ping': {'status': 'SKIPPED', 'sent': 0, 'received': 0, 'rtts': [], 'events': []}, 'settings': {'external_allowed': not private, 'timeout': args.timeout, 'max_workers': 3, 'max_hops': args.hops, 'discovery_port_cap': MAX_DISCOVERY_PORTS, 'total_port_cap': MAX_TOTAL_PORTS}, 'dependencies': {name: bool(shutil.which(name)) for name in ('ip', 'iptables', 'ip6tables', 'nft', 'nmap', 'mtr', 'curl', 'jq')}}
+    report = {'schema_version': 2, 'version': '1.4.6', 'generated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'ip': ip, 'ports': ports, 'path': path, 'route': path_route, 'tcp': {p: skipped(p) for p in ports}, 'udp': {}, 'http': {}, 'sni_name': args.sni, 'sni_dns': {}, 'sni_tls': {}, 'volume': {'status': 'SKIPPED', 'detail': 'Проба запускается, если TCP/443 доступен'}, 'tls': {}, 'syn': {}, 'services': {}, 'discovery': {'status': 'SKIPPED', 'ports': []}, 'routing': {}, 'controls': {}, 'traces': {}, 'external': [], 'external_status': 'DISABLED' if private else 'NOT_NEEDED', 'stages': [], 'errors': [], 'ping': {'status': 'SKIPPED', 'sent': 0, 'received': 0, 'rtts': [], 'events': []}, 'settings': {'external_allowed': not private, 'timeout': args.timeout, 'max_workers': 3, 'max_hops': args.hops, 'discovery_port_cap': MAX_DISCOVERY_PORTS, 'total_port_cap': MAX_TOTAL_PORTS}, 'dependencies': {name: bool(shutil.which(name)) for name in ('ip', 'iptables', 'ip6tables', 'nft', 'nmap', 'mtr', 'curl', 'jq')}}
     quiet = args.json
     try:
         if not quiet:
             progress('1/6 · Проверка маршрута и WAN')
         if path_route.get('ok') is not False:
-            primary = [p for p in ports if p in (22, 80, 443, 8080, 8443)]
-            if not primary:
-                primary = ports[:3]
+            primary = list(ports)
             controls = ('2606:4700:4700::1111', '2001:4860:4860::8888', '2620:fe::fe') if address.version == 6 else ('1.1.1.1', '8.8.8.8', '9.9.9.9')
             controls = tuple(value for value in controls if value != ip)
             jobs = [(('tcp', p), tcp_discovery, (ip, p)) for p in primary]
+            if args.sni:
+                jobs.append((('sni_dns', None), sni_dns_probe, (args.sni, ip)))
             if not private:
                 jobs.insert(0, (('discovery', None), discover_ports, (ip,)))
             jobs += [(('controls', control), tcp, (control, 443, 2)) for control in controls]
@@ -6366,9 +6556,16 @@ def main():
                 for name, version in (('1.2', ssl.TLSVersion.TLSv1_2), ('1.3', ssl.TLSVersion.TLSv1_3)):
                     jobs.append((('tls_' + str(port), name), tls_confirm, (ip, port, version)))
                 report['tls_' + str(port)] = report['tls'][port]
+            if args.sni and 443 in opens:
+                for name, version in (('1.2', ssl.TLSVersion.TLSv1_2), ('1.3', ssl.TLSVersion.TLSv1_3)):
+                    jobs.append((('sni_tls', name), tls_sni_confirm, (ip, 443, version, args.sni)))
             if no_open:
                 jobs += [(('syn', port), syn_probe, (ip, port)) for port in ([443] if 443 in ports else ports[:1])]
-            run_stage(report, '5/6 · TLS без SNI, HTTP и SYN', jobs, quiet)
+            run_stage(report, '5/6 · TLS, SNI, HTTP и SYN', jobs, quiet)
+            if 443 in opens and END_TIME - time.monotonic() > 1:
+                if not quiet:
+                    progress('5/6 · Проверка обрыва на объёме 16 КБ')
+                report['volume'] = volume_probe(ip, 443, args.sni)
             for port in tls_ports:
                 report.pop('tls_' + str(port), None)
             jobs = [(('traces', mode), trace, (ip, mode, args.hops, 443 if 443 in ports else ports[0], .7)) for mode in ('ICMP', 'UDP', 'TCP')]
@@ -6450,7 +6647,15 @@ xmenu_diagnostics_menu() {
             4)
                 _read_or_eof 'Публичный IP VPS (IPv4; Enter — назад): ' || return 0
                 case "$_read_value" in 0|'') return 0 ;; esac
-                xmenu_server_diagnose "$_read_value" || : ;;
+                _vps_target=$_read_value
+                _read_or_eof 'Имя сайта для SNI (необязательно, Enter — пропустить): ' || return 0
+                _vps_sni=$_read_value
+                if [ -n "$_vps_sni" ]; then
+                    xmenu_server_diagnose "$_vps_target" --sni "$_vps_sni" || :
+                else
+                    xmenu_server_diagnose "$_vps_target" || :
+                fi
+                ;;
             0|'') return 0 ;;
         esac
     done
@@ -9809,12 +10014,20 @@ xmenu_load_hidden_items() {
     XMENU_HIDDEN_ITEMS=''
     if [ -f "$ROOT_DIR/hidden-menu-items" ]; then
         XMENU_HIDDEN_ITEMS=$(LC_ALL=C awk '
-            /^[0-9]+$/ && $0+0>=1 && $0+0<=22 && !seen[$0+0]++ {
+            /^[0-9]+$/ && $0+0>=1 && $0+0<=23 && !seen[$0+0]++ {
                 printf "%d ", $0+0
-                if (++count==22) exit
+                if (++count==23) exit
             }
         ' "$ROOT_DIR/hidden-menu-items" 2>/dev/null || :)
     fi
+}
+
+xmenu_xkeen_is_installed() {
+    [ -x /opt/sbin/xkeen ] || command -v xkeen >/dev/null 2>&1
+}
+
+xmenu_main_item_available() {
+    [ "$1" != 23 ] || xmenu_xkeen_is_installed
 }
 
 xmenu_main_item_hidden() {
@@ -9856,17 +10069,23 @@ xmenu_main_resolve_choice() {
     while [ "${_xmrc_requested#0}" != "$_xmrc_requested" ]; do _xmrc_requested=${_xmrc_requested#0}; done
     [ -n "$_xmrc_requested" ] || _xmrc_requested=0
     if [ "$_xmrc_requested" = 0 ]; then printf '0'; return 0; fi
-    _xmrc_action=1
+    _xmrc_slot=1
     _xmrc_visible=0
-    while [ "$_xmrc_action" -le 22 ]; do
-        if ! xmenu_main_item_hidden "$_xmrc_action"; then
+    while [ "$_xmrc_slot" -le 23 ]; do
+        _xmrc_action=$_xmrc_slot
+        if xmenu_xkeen_is_installed; then
+            if [ "$_xmrc_slot" -eq 13 ]; then _xmrc_action=23
+            elif [ "$_xmrc_slot" -gt 13 ]; then _xmrc_action=$((_xmrc_slot - 1))
+            fi
+        fi
+        if xmenu_main_item_available "$_xmrc_action" && ! xmenu_main_item_hidden "$_xmrc_action"; then
             _xmrc_visible=$((_xmrc_visible + 1))
             if [ "$_xmrc_visible" = "$_xmrc_requested" ]; then
                 printf '%s' "$_xmrc_action"
                 return 0
             fi
         fi
-        _xmrc_action=$((_xmrc_action + 1))
+        _xmrc_slot=$((_xmrc_slot + 1))
     done
     return 1
 }
@@ -9899,13 +10118,13 @@ xmenu_editor_menu() (
         line
         if [ "$_lang" = en ]; then
             say "${BRIGHT_CYAN}Menu editor${RESET}"
-            say 'Enter numbers 1–22 separated by spaces to hide or restore items.'
+            say 'Enter numbers 1–23 separated by spaces to hide or restore items.'
             say 'Dim items are hidden. Changes are saved automatically.'
             say 'Editor numbers stay fixed; the main menu renumbers visible items.'
             _xme_prompt="Numbers [${BRIGHT_CYAN}99 = show all${RESET}, Enter = back]: "
         else
             say "${BRIGHT_CYAN}Редактор меню${RESET}"
-            say 'Введите номера 1–22 через пробел, чтобы скрыть или вернуть пункты.'
+            say 'Введите номера 1–23 через пробел, чтобы скрыть или вернуть пункты.'
             say 'Приглушённые пункты скрыты. Изменения сохраняются автоматически.'
             say 'Здесь номера постоянные; в главном меню — только видимые пункты подряд.'
             _xme_prompt="Номера [${BRIGHT_CYAN}99 = показать все${RESET}, Enter = назад]: "
@@ -9923,15 +10142,16 @@ xmenu_editor_menu() (
         if [ "${#_xme_input}" -gt 256 ]; then _xme_valid=0
         elif [ "$_xme_input" != 99 ]; then
             for _xme_id in $_xme_input; do
-                case "$_xme_id" in [1-9]|1[0-9]|2[0-2]) : ;; *) _xme_valid=0; break ;; esac
+                case "$_xme_id" in [1-9]|1[0-9]|2[0-3]) : ;; *) _xme_valid=0; break ;; esac
+                if [ "$_xme_id" = 23 ] && ! xmenu_xkeen_is_installed; then _xme_valid=0; break; fi
                 case " $_xme_selection " in *" $_xme_id "*) continue ;; esac
                 _xme_selection="$_xme_selection $_xme_id"
             done
             [ -n "$_xme_selection" ] || _xme_valid=0
         fi
         if [ "$_xme_valid" != 1 ]; then
-            if [ "$_lang" = en ]; then say 'Use numbers 1–22, or 99 to show all.'
-            else say 'Допустимы номера 1–22 или 99, чтобы показать всё.'; fi
+            if [ "$_lang" = en ]; then say 'Use numbers 1–23, or 99 to show all.'
+            else say 'Допустимы номера 1–23 или 99, чтобы показать всё.'; fi
             pause
             continue
         fi
@@ -9981,9 +10201,10 @@ xmenu_render_main_items() {
         xmenu_main_menu_item 11 'Xray + GeoIPSet + XKeen Auto + XKeen UI + nfqws2 + nfqws-web-keenetic'
         say ""
         fi
-        if xmenu_main_group_visible 12 12; then
-        say "${PURPLE}[::]  nfqws2 management:${RESET}"
+        if xmenu_main_group_visible 12 12 || xmenu_main_item_available 23; then
+        say "${PURPLE}[::]  XKeen / nfqws2 management:${RESET}"
         xmenu_main_menu_item 12 'nfqws2 management'
+        if xmenu_main_item_available 23; then xmenu_main_menu_item 23 'Manage XKeen'; fi
         say ""
         fi
         if xmenu_main_group_visible 13 17; then
@@ -10003,6 +10224,7 @@ xmenu_render_main_items() {
         xmenu_main_menu_item 21 'Update Xmenu'
         xmenu_main_menu_item 22 'OPKG settings / Entware mirrors'
         fi
+
         if [ "${XMENU_EDITOR_MODE:-0}" = 1 ]; then
             printf '%b' "$BRIGHT_CYAN"
             menu_item 99 'Show all'
@@ -10031,9 +10253,10 @@ xmenu_render_main_items() {
         xmenu_main_menu_item 11 'Xray + GeoIPSet + XKeen Auto + XKeen UI + nfqws2 + nfqws-web-keenetic'
         say ""
         fi
-        if xmenu_main_group_visible 12 12; then
-        say "${PURPLE}[::]  Управление nfqws2:${RESET}"
+        if xmenu_main_group_visible 12 12 || xmenu_main_item_available 23; then
+        say "${PURPLE}[::]  Управление XKeen и nfqws2:${RESET}"
         xmenu_main_menu_item 12 'Управление nfqws2'
+        if xmenu_main_item_available 23; then xmenu_main_menu_item 23 'Управление XKeen'; fi
         say ""
         fi
         if xmenu_main_group_visible 13 17; then
@@ -10053,6 +10276,7 @@ xmenu_render_main_items() {
         xmenu_main_menu_item 21 'Обновить Xmenu'
         xmenu_main_menu_item 22 'Настройки OPKG / зеркала Entware'
         fi
+
         if [ "${XMENU_EDITOR_MODE:-0}" = 1 ]; then
             printf '%b' "$BRIGHT_CYAN"
             menu_item 99 'Показать все'
@@ -10066,6 +10290,64 @@ xmenu_render_main_items() {
 }
 
 # ---------------------------- Component removal ----------------------------
+
+xmenu_manage_xkeen_menu() {
+    xmenu_xkeen_is_installed || {
+        say "${YELLOW}XKeen не установлен; раздел управления недоступен.${RESET}"
+        return 1
+    }
+    _xkm_lang=$(get_ui_lang)
+    while :; do
+        if [ "$_xkm_lang" = en ]; then
+            line; say "${BRIGHT_CYAN}XKeen management${RESET}"; line
+            menu_item 1 'Switch update channel (Stable / Dev)'
+            menu_item 2 'Update XKeen'
+            menu_item 0 'Back'
+            _xkm_prompt='[?] Select an option: '
+        else
+            line; say "${BRIGHT_CYAN}Управление XKeen${RESET}"; line
+            menu_item 1 'Сменить канал обновлений (Stable / Dev)'
+            menu_item 2 'Обновить XKeen'
+            menu_item 0 'Назад'
+            _xkm_prompt='[?] Выбери пункт: '
+        fi
+        _read_or_eof "$_xkm_prompt" || return 0
+        case "$_read_value" in
+            1)
+                xmenu_xkeen_is_installed || { say "${RED}XKeen больше не найден.${RESET}"; pause; return 1; }
+                acquire_lock || return 1
+                trap 'release_operation_lock' 0
+                say "${BRIGHT_CYAN}Запускаю штатный выбор канала XKeen...${RESET}"
+                if has_controlling_tty; then /opt/sbin/xkeen -channel </dev/tty
+                else /opt/sbin/xkeen -channel
+                fi
+                _xkm_rc=$?
+                release_operation_lock
+                trap - 0
+                [ "$_xkm_rc" -eq 0 ] || say "${RED}Переключение канала XKeen завершилось с кодом $_xkm_rc.${RESET}"
+                pause
+                ;;
+            2)
+                xmenu_xkeen_is_installed || { say "${RED}XKeen больше не найден.${RESET}"; pause; return 1; }
+                if [ "$_xkm_lang" = en ]; then confirm 'Update XKeen now?'; else confirm 'Обновить XKeen сейчас?'; fi || continue
+                acquire_lock || return 1
+                trap 'invalidate_component_status_cache; release_operation_lock' 0
+                say "${BRIGHT_CYAN}Запускаю штатное обновление XKeen (xkeen -uk)...${RESET}"
+                if has_controlling_tty; then /opt/sbin/xkeen -uk </dev/tty
+                else /opt/sbin/xkeen -uk
+                fi
+                _xkm_rc=$?
+                invalidate_component_status_cache
+                release_operation_lock
+                trap - 0
+                [ "$_xkm_rc" -eq 0 ] || say "${RED}Обновление XKeen завершилось с кодом $_xkm_rc.${RESET}"
+                pause
+                ;;
+            0|'') return 0 ;;
+            *) say 'Неверный пункт.' ;;
+        esac
+    done
+}
 # All removal operations are explicit, confirmation-protected, and preserve
 # user configs unless the user selects a separate cleanup action.
 remove_nf2_component() {
@@ -10682,7 +10964,7 @@ main() {
             continue
         }
         case "$_choice" in
-            1|2|3|4|5|6|7|8|9|10|11|13|14|15|16|17|19|21) invalidate_component_status_cache ;;
+            1|2|3|4|5|6|7|8|9|10|11|13|14|15|16|17|19|21|23) invalidate_component_status_cache ;;
         esac
         case "$_choice" in
             1) ensure_network && install_xkeen_stable_binary; pause ;;
@@ -10707,6 +10989,7 @@ main() {
             20) remove_menu; _remove_rc=$?; [ "${XMENU_REMOVED:-0}" = 1 ] && { cleanup; return 0; } ;;
             21) update_xmenu_script || pause ;;
             22) opkg_settings_menu ;;
+            23) xmenu_manage_xkeen_menu ;;
             0) cleanup; return 0 ;;
             *) say "${RED}Неверный пункт.${RESET}"; sleep 1 ;;
         esac
