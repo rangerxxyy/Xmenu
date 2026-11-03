@@ -1,8 +1,6 @@
-# Команды SSH
+# ⌨️ Команды SSH
 
 [◆ Wiki Xmenu](../WIKI.md) · [Читать целиком](Full-guide.md) · [README](../../README.md)
-
-## Команды SSH
 
 | Команда | Назначение |
 | --- | --- |

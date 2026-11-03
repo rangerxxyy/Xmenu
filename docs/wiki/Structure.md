@@ -1,8 +1,6 @@
-# Пути и корневая структура Xmenu
+# 🗂 Пути и корневая структура Xmenu
 
 [◆ Wiki Xmenu](../WIKI.md) · [Читать целиком](Full-guide.md) · [README](../../README.md)
-
-## Пути и корневая структура Xmenu
 
 <details>
 <summary><b>Структура репозитория</b></summary>

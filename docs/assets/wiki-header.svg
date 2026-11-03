@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="220" viewBox="0 0 1200 220" role="img" aria-label="Xmenu — руководство пользователя">
+<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#111827"/><stop offset="1" stop-color="#192332"/></linearGradient><linearGradient id="accent"><stop stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs>
+<rect width="1200" height="220" rx="20" fill="url(#bg)"/>
+<rect x="36" y="36" width="1128" height="148" rx="12" fill="#0b1220" stroke="#334155"/>
+<circle cx="60" cy="56" r="4" fill="#fb7185"/><circle cx="76" cy="56" r="4" fill="#fbbf24"/><circle cx="92" cy="56" r="4" fill="#34d399"/>
+<path d="M60 104l18 13-18 13m29 1h24" fill="none" stroke="#22d3ee" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="144" y="121" fill="#f8fafc" font-family="Segoe UI,Arial,sans-serif" font-size="45" font-weight="700">Xmenu</text>
+<text x="145" y="154" fill="#94a3b8" font-family="Segoe UI,Arial,sans-serif" font-size="18">Руководство пользователя</text>
+<text x="1125" y="112" text-anchor="end" fill="#cbd5e1" font-family="Segoe UI,Arial,sans-serif" font-size="20">Keenetic · Netcraze · Entware</text>
+<rect x="144" y="169" width="980" height="2" rx="1" fill="url(#accent)"/>
+</svg>

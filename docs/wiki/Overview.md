@@ -1,8 +1,6 @@
-# Что умеет Xmenu
+# ◆ Что умеет Xmenu
 
 [◆ Wiki Xmenu](../WIKI.md) · [Читать целиком](Full-guide.md) · [README](../../README.md)
-
-## Что умеет Xmenu
 
 | Раздел | Возможности |
 | --- | --- |

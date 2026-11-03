@@ -1,4 +1,4 @@
-# Установка Xmenu
+# 📦 Установка Xmenu
 
 [◆ Wiki Xmenu](../WIKI.md) · [Читать целиком](Full-guide.md) · [README](../../README.md)
 

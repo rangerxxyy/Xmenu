@@ -1,8 +1,15 @@
-# Сервисное меню
+# 🛠 Сервисное меню
 
 [◆ Wiki Xmenu](../WIKI.md) · [Читать целиком](Full-guide.md) · [README](../../README.md)
 
-## Сервисное меню
+<details open>
+<summary><b>На этой странице</b></summary>
+
+- [Dropbear Fix](#dropbear-fix)
+- [Сжать bin/sbin](#сжать-binsbin)
+- [Discord Fix](#discord-fix)
+
+</details>
 
 Нажми **S** в главном меню.
 
