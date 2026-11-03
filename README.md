@@ -21,7 +21,7 @@
 mkdir -p /opt/bin && curl -fL --retry 3 https://github.com/rangerxxyy/Xmenu/releases/latest/download/xmenu-v1.0.sh -o /tmp/xmenu.sh && sh -n /tmp/xmenu.sh && { [ ! -f /opt/bin/xmenu ] || cp -p /opt/bin/xmenu "/opt/bin/xmenu.bak.$(date +%Y%m%d-%H%M%S)"; } && cp /tmp/xmenu.sh /opt/bin/.xmenu-new && chmod 700 /opt/bin/.xmenu-new && mv -f /opt/bin/.xmenu-new /opt/bin/xmenu && xmenu
 ```
 
-После установки меню откроется автоматически. Чтобы открыть Xmenu позже, подключитесь к роутеру по SSH и выполните:
+Для открытия Xmenu достаточно ввести:
 
 ```sh
 xmenu
