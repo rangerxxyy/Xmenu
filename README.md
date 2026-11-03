@@ -2,15 +2,13 @@
 
 Установка сетевых инструментов, настройка XKeen и NFQWS, защищённый DNS и диагностика — в одном меню.
 
-## Установка одной командой:
+## ⚡Установка стабильного релиза одной командой:
 
 ```sh
 mkdir -p /opt/bin && curl -fL --retry 3 https://github.com/rangerxxyy/Xmenu/releases/latest/download/xmenu-v1.0.sh -o /tmp/xmenu.sh && sh -n /tmp/xmenu.sh && { [ ! -f /opt/bin/xmenu ] || cp -p /opt/bin/xmenu "/opt/bin/xmenu.bak.$(date +%Y%m%d-%H%M%S)"; } && cp /tmp/xmenu.sh /opt/bin/.xmenu-new && chmod 700 /opt/bin/.xmenu-new && mv -f /opt/bin/.xmenu-new /opt/bin/xmenu && xmenu
 ```
 
-Установится последний стабильный релиз. Если Xmenu уже установлен, команда сохранит его резервную копию.
-
-**Запуск:** `xmenu` · **Обновление:** `U` · **Сервис:** `S` · **Редактор меню:** `E`
+**Запуск:** `xmenu` ·
 
 ## Возможности
 
