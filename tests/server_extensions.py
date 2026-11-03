@@ -155,7 +155,7 @@ class LoopbackTests(unittest.TestCase):
                 server.sendto(StunTests().response(data[8:20]), peer)
             worker = threading.Thread(target=answer)
             worker.start()
-            with mock.patch.object(engine, 'prepare_socket', side_effect=lambda value: value), mock.patch.object(engine, 'FlowGuard'):
+            with mock.patch.object(engine, 'prepare_socket', side_effect=lambda value, **kwargs: value), mock.patch.object(engine, 'FlowGuard'):
                 result = engine.stun_probe('127.0.0.1', server.getsockname()[1], 1)
             worker.join(3)
             self.assertEqual(result['status'], 'STUN REPLY')
@@ -173,7 +173,7 @@ class LoopbackTests(unittest.TestCase):
                     connection.sendall(b'SSH-2.0-TestServer\r\n')
             worker = threading.Thread(target=answer)
             worker.start()
-            with mock.patch.object(engine, 'prepare_socket', side_effect=lambda value: value), mock.patch.object(engine, 'FlowGuard'):
+            with mock.patch.object(engine, 'prepare_socket', side_effect=lambda value, **kwargs: value), mock.patch.object(engine, 'FlowGuard'):
                 result = engine.banner_probe('127.0.0.1', server.getsockname()[1])
             worker.join(3)
             self.assertEqual(result['status'], 'BANNER REPLY')
@@ -211,7 +211,7 @@ class AuditRegressionTests(unittest.TestCase):
                 raise TimeoutError()
             return reply
         sock.recv.side_effect = receive
-        with mock.patch.object(engine.socket, 'socket', return_value=sock), mock.patch.object(engine, 'prepare_socket', side_effect=lambda value: value), mock.patch.object(engine, 'FlowGuard'), mock.patch.object(engine.time, 'monotonic', side_effect=lambda: clock[0]), mock.patch.object(engine, 'quic_probe_packet', return_value=(b'probe', dcid, scid, version)):
+        with mock.patch.object(engine.socket, 'socket', return_value=sock), mock.patch.object(engine, 'prepare_socket', side_effect=lambda value, **kwargs: value), mock.patch.object(engine, 'FlowGuard'), mock.patch.object(engine.time, 'monotonic', side_effect=lambda: clock[0]), mock.patch.object(engine, 'quic_probe_packet', return_value=(b'probe', dcid, scid, version)):
             value = engine.udp('1.1.1.1', 443, 2)
         self.assertEqual(value['status'], 'QUIC VN')
         self.assertIsNone(value['ms'])
@@ -378,7 +378,7 @@ class PipelineTests(unittest.TestCase):
         self.assertNotIn('см. D', text)
         self.assertNotIn('D —', text)
         self.assertIn('Длительность проверки:', text)
-        self.assertIn('Причина отсутствия ответа не установлена', text)
+        self.assertIn('Возможны: служба не запущена, firewall фильтрует трафик или теряются пакеты.', text)
         self.assertIn('API недоступен', text)
 
 
