@@ -21,7 +21,11 @@
 mkdir -p /opt/bin && curl -fL --retry 3 https://github.com/rangerxxyy/Xmenu/releases/latest/download/xmenu-v1.0.sh -o /tmp/xmenu.sh && sh -n /tmp/xmenu.sh && { [ ! -f /opt/bin/xmenu ] || cp -p /opt/bin/xmenu "/opt/bin/xmenu.bak.$(date +%Y%m%d-%H%M%S)"; } && cp /tmp/xmenu.sh /opt/bin/.xmenu-new && chmod 700 /opt/bin/.xmenu-new && mv -f /opt/bin/.xmenu-new /opt/bin/xmenu && xmenu
 ```
 
-** Для дальнейшего запуска xmenu достаточно ввести:** `xmenu` ·
+После установки меню откроется автоматически. Чтобы открыть Xmenu позже, подключитесь к роутеру по SSH и выполните:
+
+```sh
+xmenu
+```
 
 ## Возможности
 
@@ -33,3 +37,9 @@ mkdir -p /opt/bin && curl -fL --retry 3 https://github.com/rangerxxyy/Xmenu/rele
 - 🎛 **Своё меню** — скрытие ненужных пунктов с автоматической нумерацией.
 
 Если Xmenu полезен — поддержите проект звездой **⭐**
+
+## Лицензия и благодарности
+
+Xmenu распространяется по лицензии [MIT](LICENSE) и предоставляется «как есть», без гарантий. Автор не несёт ответственности за ущерб и последствия использования программы в пределах, предусмотренных лицензией MIT.
+
+[Благодарности и используемые проекты →](docs/WIKI.md#используемые-проекты-и-благодарности)
