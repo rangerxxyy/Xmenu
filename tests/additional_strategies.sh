@@ -13,6 +13,8 @@ cp "$repo/strategies/nfqws2/SHA256SUMS" "$ROOT_DIR/manifests/SHA256SUMS.xmenu"
 printf '0123456789abcdef0123456789abcdef01234567\n' > "$ROOT_DIR/manifests/XMENU_REVISION"
 printf 'ISP_INTERFACE="eth9"\nNFQWS_ARGS="--old"\n' > "$tmp/nfqws2.conf"
 fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
+
+test "$(strategy_url_path 'strategies/nfqws2/additional/My config.conf')" = 'strategies/nfqws2/additional/My%20config.conf' || fail 'space in strategy URL was not percent-encoded'
 sync_strategies() { :; }
 active_conf() { printf '%s|%s' "$tmp/nfqws2.conf" "$tmp/blobs"; }
 _read_or_eof() { _read_value=$(sed -n '1p' "$tmp/input"); sed '1d' "$tmp/input" > "$tmp/input.new"; mv "$tmp/input.new" "$tmp/input"; }

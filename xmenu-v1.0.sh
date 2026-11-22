@@ -1,6 +1,6 @@
 #!/bin/sh
-# Xmenu ◆ v1.4.7 — Entware / BusyBox ash
-APP_VERSION="1.4.7"
+# Xmenu ◆ v1.4.8 — Entware / BusyBox ash
+APP_VERSION="1.4.8"
 # XKEEN_MENU_AUTO_YES=1/true/yes/on отключает подтверждение только для NFQWS2 UI в install-all.
 ROOT_DIR="/opt/etc/xmenu"
 BACKUP_DIR="$ROOT_DIR/backups"
@@ -1764,6 +1764,10 @@ strategy_valid_name() {
     printf '%s\n' "$1" | LC_ALL=C grep -Eq '^(additional/)?[A-Za-z0-9_.+ -]+\.conf$'
 }
 
+strategy_url_path() {
+    printf '%s' "$1" | sed 's/ /%20/g'
+}
+
 strategy_names_from_manifest() {
     _sn_ver=$1
     _sn_manifest="$ROOT_DIR/manifests/SHA256SUMS"
@@ -2380,7 +2384,7 @@ XMENU_STRATEGY_ORDER
     _name=$(awk -v n="$_n" 'NR==n {print; exit}' "$_list")
     strategy_valid_name "$_name" || { say 'Недопустимое имя стратегии.'; return 1; }
     _rel="strategies/nfqws$_ver/$_name"
-    _url_rel=$(printf '%s' "$_rel" | sed 's/ /%20/g')
+    _url_rel=$(strategy_url_path "$_rel")
     _src="$(strategy_source_repo "$_rel")/$_url_rel"; _tmp="$ROOT_DIR/apply-$$.conf"
     _expected=$(while IFS= read -r _entry || [ -n "$_entry" ]; do
         _h=$(printf '%s' "$_entry" | cut -c1-64)
@@ -2818,7 +2822,7 @@ def request(url, ip, transport, direct=False, accept='*/*', read_limit=16384):
             data['cert_expires'] = certificate.get('notAfter')
         data['stage'] = 'HTTP'
         target = urllib.parse.urlunsplit(('', '', parsed.path or '/', parsed.query, ''))
-        headers = 'GET ' + target + ' HTTP/1.1\r\nHost: ' + parsed.netloc + '\r\nUser-Agent: Xmenu/1.4.7\r\nAccept: ' + accept + '\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n'
+        headers = 'GET ' + target + ' HTTP/1.1\r\nHost: ' + parsed.netloc + '\r\nUser-Agent: Xmenu/1.4.8\r\nAccept: ' + accept + '\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n'
         sock.settimeout(transport.remaining(min(3, max(.001, deadline - time.monotonic()))))
         started = time.monotonic()
         sock.sendall(headers.encode('ascii'))
@@ -5717,7 +5721,7 @@ def fetch_json(url, timeout=6, payload=None):
         timer.start()
         path = urllib.parse.urlunsplit(('', '', parsed.path or '/', parsed.query, ''))
         data = json.dumps(payload).encode('utf-8') if payload is not None else b''
-        headers = ('POST' if payload is not None else 'GET') + ' ' + path + ' HTTP/1.1\r\nHost: ' + parsed.hostname + '\r\nAccept: application/json\r\nUser-Agent: Xmenu/1.4.7\r\nConnection: close\r\n'
+        headers = ('POST' if payload is not None else 'GET') + ' ' + path + ' HTTP/1.1\r\nHost: ' + parsed.hostname + '\r\nAccept: application/json\r\nUser-Agent: Xmenu/1.4.8\r\nConnection: close\r\n'
         if payload is not None:
             headers += 'Content-Type: application/json\r\nContent-Length: ' + str(len(data)) + '\r\n'
         sock.sendall((headers + '\r\n').encode('ascii') + data)
@@ -6494,7 +6498,7 @@ def main():
     path_route = inspect_route(ip, path)
     path['local_filter'] = inspect_filter(ip, path)
     skipped = lambda port: {'status': 'SKIPPED', 'port_state': 'UNKNOWN', 'ms': None, 'port': port, 'attempts': []}
-    report = {'schema_version': 2, 'version': '1.4.7', 'generated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'ip': ip, 'ports': ports, 'path': path, 'route': path_route, 'tcp': {p: skipped(p) for p in ports}, 'udp': {}, 'http': {}, 'sni_name': args.sni, 'sni_dns': {}, 'sni_tls': {}, 'volume': {'status': 'SKIPPED', 'detail': 'Проба запускается, если TCP/443 доступен'}, 'tls': {}, 'syn': {}, 'services': {}, 'discovery': {'status': 'SKIPPED', 'ports': []}, 'routing': {}, 'controls': {}, 'traces': {}, 'external': [], 'external_status': 'DISABLED' if private else 'NOT_NEEDED', 'stages': [], 'errors': [], 'ping': {'status': 'SKIPPED', 'sent': 0, 'received': 0, 'rtts': [], 'events': []}, 'settings': {'external_allowed': not private, 'timeout': args.timeout, 'max_workers': 3, 'max_hops': args.hops, 'discovery_port_cap': MAX_DISCOVERY_PORTS, 'total_port_cap': MAX_TOTAL_PORTS}, 'dependencies': {name: bool(shutil.which(name)) for name in ('ip', 'iptables', 'ip6tables', 'nft', 'nmap', 'mtr', 'curl', 'jq')}}
+    report = {'schema_version': 2, 'version': '1.4.8', 'generated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'ip': ip, 'ports': ports, 'path': path, 'route': path_route, 'tcp': {p: skipped(p) for p in ports}, 'udp': {}, 'http': {}, 'sni_name': args.sni, 'sni_dns': {}, 'sni_tls': {}, 'volume': {'status': 'SKIPPED', 'detail': 'Проба запускается, если TCP/443 доступен'}, 'tls': {}, 'syn': {}, 'services': {}, 'discovery': {'status': 'SKIPPED', 'ports': []}, 'routing': {}, 'controls': {}, 'traces': {}, 'external': [], 'external_status': 'DISABLED' if private else 'NOT_NEEDED', 'stages': [], 'errors': [], 'ping': {'status': 'SKIPPED', 'sent': 0, 'received': 0, 'rtts': [], 'events': []}, 'settings': {'external_allowed': not private, 'timeout': args.timeout, 'max_workers': 3, 'max_hops': args.hops, 'discovery_port_cap': MAX_DISCOVERY_PORTS, 'total_port_cap': MAX_TOTAL_PORTS}, 'dependencies': {name: bool(shutil.which(name)) for name in ('ip', 'iptables', 'ip6tables', 'nft', 'nmap', 'mtr', 'curl', 'jq')}}
     quiet = args.json
     try:
         if not quiet:
@@ -10222,7 +10226,7 @@ xmenu_render_main_items() {
         xmenu_main_menu_item 11 'Xray + GeoIPSet + XKeen Auto + XKeen UI + nfqws2 + nfqws-web-keenetic'
         say ""
         fi
-        if xmenu_main_group_visible 12 12 || xmenu_main_item_available 23; then
+        if xmenu_main_group_visible 12 12 || { xmenu_main_item_available 23 && ! xmenu_main_item_hidden 23; }; then
         say "${PURPLE}[::]  XKeen / nfqws2 management:${RESET}"
         xmenu_main_menu_item 12 'nfqws2 management'
         if xmenu_main_item_available 23; then xmenu_main_menu_item 23 'Manage XKeen'; fi
@@ -10274,7 +10278,7 @@ xmenu_render_main_items() {
         xmenu_main_menu_item 11 'Xray + GeoIPSet + XKeen Auto + XKeen UI + nfqws2 + nfqws-web-keenetic'
         say ""
         fi
-        if xmenu_main_group_visible 12 12 || xmenu_main_item_available 23; then
+        if xmenu_main_group_visible 12 12 || { xmenu_main_item_available 23 && ! xmenu_main_item_hidden 23; }; then
         say "${PURPLE}[::]  Управление XKeen и nfqws2:${RESET}"
         xmenu_main_menu_item 12 'Управление nfqws2'
         if xmenu_main_item_available 23; then xmenu_main_menu_item 23 'Управление XKeen'; fi
@@ -10434,12 +10438,8 @@ remove_xkeen_ui_umarcheh001() {
 
 remove_xkeen_component() {
     confirm 'Выполнить полное удаление XKeen штатной командой xkeen -remove? Перед продолжением рекомендуется сохранить конфиги.' || { say 'Удаление отменено.'; return 1; }
-    if [ -x /opt/sbin/xkeen ]; then
-        /opt/sbin/xkeen -remove
-    else
-        say "${RED}Не найден /opt/sbin/xkeen. Автоматическое удаление не выполнено.${RESET}"
-        return 1
-    fi
+    _rxc_cmd=$(xmenu_xkeen_command) || { say "${RED}Не найден исполняемый файл XKeen. Автоматическое удаление не выполнено.${RESET}"; return 1; }
+    "$_rxc_cmd" -remove
 }
 
 remove_xkeen_core() {
