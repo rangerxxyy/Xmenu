@@ -49,18 +49,7 @@ opkg update && opkg install curl wget-ssl ca-certificates
 
 </details>
 
-<details>
-<summary><b>Проверка файла по SHA-256</b></summary>
-
-У релиза есть файл `SHA256SUMS`. Скачай его и скрипт в один каталог:
-
-```sh
-mkdir -p /tmp/xmenu-release && cd /tmp/xmenu-release && curl -fLO 'https://github.com/rangerxxyy/Xmenu/releases/latest/download/xmenu-v1.0.sh' && curl -fLO 'https://github.com/rangerxxyy/Xmenu/releases/latest/download/SHA256SUMS' && sha256sum -c SHA256SUMS && sh -n xmenu-v1.0.sh
-```
-
-Ожидаемый результат: `xmenu-v1.0.sh: OK`. Контрольная сумма проверяет соответствие файла релизному артефакту.
-
-</details>
+Файлы релиза можно скачать со страницы [выпусков Xmenu](https://github.com/rangerxxyy/Xmenu/releases). Установочный скрипт также проверяется синтаксисом shell перед запуском.
 
 ## Навигация
 
