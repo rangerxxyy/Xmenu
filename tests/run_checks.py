@@ -43,7 +43,7 @@ with tempfile.TemporaryDirectory(prefix='xmenu-checks-') as temporary:
         run(['shellcheck', '-s', 'sh', '-S', 'warning', 'xmenu-v1.0.sh'], env)
     else:
         print('ShellCheck unavailable in this environment; CI runs it separately.', flush=True)
-    for name in ('regression', 'audit_regression', 'service_regression', 'nfqws_features', 'native_actions', 'site_diagnostics', 'nfqws_install', 'additional_strategies'):
+    for name in ('regression', 'audit_regression', 'service_regression', 'nfqws_features', 'native_actions', 'site_diagnostics', 'nfqws_install', 'additional_strategies', 'xkeen_management'):
         run(['busybox', 'ash', 'tests/' + name + '.sh'], env)
     for name in ('strategy_configs', 'bounded_commands', 'dns_diagnostics', 'server_diagnostics', 'server_extensions', 'site_diagnostics', 'menu_input', 'startup_render'):
         run([sys.executable, 'tests/' + name + '.py'], env)

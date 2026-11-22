@@ -1,6 +1,6 @@
 #!/bin/sh
-# Xmenu ◆ v1.4.6 — Entware / BusyBox ash
-APP_VERSION="1.4.6"
+# Xmenu ◆ v1.4.7 — Entware / BusyBox ash
+APP_VERSION="1.4.7"
 # XKEEN_MENU_AUTO_YES=1/true/yes/on отключает подтверждение только для NFQWS2 UI в install-all.
 ROOT_DIR="/opt/etc/xmenu"
 BACKUP_DIR="$ROOT_DIR/backups"
@@ -1075,16 +1075,27 @@ latest_tag() {
     printf '%s' "$_tag"
 }
 xkeen_channel() {
+    # XKeen's own build variable is authoritative. Xmenu's marker can become
+    # stale when the channel is changed from XKeen's native -channel menu.
+    _build_file='/opt/sbin/.xkeen/01_info/01_info_variable.sh'
+    if [ -r "$_build_file" ]; then
+        if grep -iEq '^[[:space:]]*xkeen_build[[:space:]]*=[[:space:]]*"?(beta|dev)"?[[:space:]]*$' "$_build_file"; then
+            printf '%s' 'Beta'; return 0
+        fi
+        if grep -iEq '^[[:space:]]*xkeen_build[[:space:]]*=[[:space:]]*"?stable"?[[:space:]]*$' "$_build_file"; then
+            printf '%s' 'Stable'; return 0
+        fi
+    fi
     _marker="$ROOT_DIR/xkeen-channel"
     if [ -r "$_marker" ]; then
         _saved=$(sed -n '1p' "$_marker" | tr -d '\r')
-        case "$_saved" in Stable|Beta) printf '%s' "$_saved"; return 0 ;; esac
+        case "$_saved" in Stable) printf '%s' 'Stable'; return 0 ;; Beta|Dev) printf '%s' 'Beta'; return 0 ;; esac
     fi
     # Проверяем только настройки и маркеры канала, а не скрипт установки XKeen,
     # в котором Stable и Beta закономерно встречаются одновременно.
     for _f in /opt/etc/xkeen/xkeen.json /opt/etc/xkeen/channel /opt/etc/xkeen/xkeen-channel /opt/sbin/.xkeen/channel; do
         [ -f "$_f" ] || continue
-        if grep -iE 'XKEEN_CHANNEL.*beta|"channel".*beta|channel[[:space:]]*:[[:space:]]*beta' "$_f" >/dev/null 2>&1; then
+        if grep -iE 'XKEEN_CHANNEL.*(beta|dev)|"channel".*(beta|dev)|channel[[:space:]]*:[[:space:]]*(beta|dev)' "$_f" >/dev/null 2>&1; then
             printf '%s' 'Beta'; return 0
         fi
         if grep -iE 'XKEEN_CHANNEL.*stable|"channel".*stable|channel[[:space:]]*:[[:space:]]*stable' "$_f" >/dev/null 2>&1; then
@@ -2807,7 +2818,7 @@ def request(url, ip, transport, direct=False, accept='*/*', read_limit=16384):
             data['cert_expires'] = certificate.get('notAfter')
         data['stage'] = 'HTTP'
         target = urllib.parse.urlunsplit(('', '', parsed.path or '/', parsed.query, ''))
-        headers = 'GET ' + target + ' HTTP/1.1\r\nHost: ' + parsed.netloc + '\r\nUser-Agent: Xmenu/1.4.6\r\nAccept: ' + accept + '\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n'
+        headers = 'GET ' + target + ' HTTP/1.1\r\nHost: ' + parsed.netloc + '\r\nUser-Agent: Xmenu/1.4.7\r\nAccept: ' + accept + '\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n'
         sock.settimeout(transport.remaining(min(3, max(.001, deadline - time.monotonic()))))
         started = time.monotonic()
         sock.sendall(headers.encode('ascii'))
@@ -5706,7 +5717,7 @@ def fetch_json(url, timeout=6, payload=None):
         timer.start()
         path = urllib.parse.urlunsplit(('', '', parsed.path or '/', parsed.query, ''))
         data = json.dumps(payload).encode('utf-8') if payload is not None else b''
-        headers = ('POST' if payload is not None else 'GET') + ' ' + path + ' HTTP/1.1\r\nHost: ' + parsed.hostname + '\r\nAccept: application/json\r\nUser-Agent: Xmenu/1.4.6\r\nConnection: close\r\n'
+        headers = ('POST' if payload is not None else 'GET') + ' ' + path + ' HTTP/1.1\r\nHost: ' + parsed.hostname + '\r\nAccept: application/json\r\nUser-Agent: Xmenu/1.4.7\r\nConnection: close\r\n'
         if payload is not None:
             headers += 'Content-Type: application/json\r\nContent-Length: ' + str(len(data)) + '\r\n'
         sock.sendall((headers + '\r\n').encode('ascii') + data)
@@ -6483,7 +6494,7 @@ def main():
     path_route = inspect_route(ip, path)
     path['local_filter'] = inspect_filter(ip, path)
     skipped = lambda port: {'status': 'SKIPPED', 'port_state': 'UNKNOWN', 'ms': None, 'port': port, 'attempts': []}
-    report = {'schema_version': 2, 'version': '1.4.6', 'generated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'ip': ip, 'ports': ports, 'path': path, 'route': path_route, 'tcp': {p: skipped(p) for p in ports}, 'udp': {}, 'http': {}, 'sni_name': args.sni, 'sni_dns': {}, 'sni_tls': {}, 'volume': {'status': 'SKIPPED', 'detail': 'Проба запускается, если TCP/443 доступен'}, 'tls': {}, 'syn': {}, 'services': {}, 'discovery': {'status': 'SKIPPED', 'ports': []}, 'routing': {}, 'controls': {}, 'traces': {}, 'external': [], 'external_status': 'DISABLED' if private else 'NOT_NEEDED', 'stages': [], 'errors': [], 'ping': {'status': 'SKIPPED', 'sent': 0, 'received': 0, 'rtts': [], 'events': []}, 'settings': {'external_allowed': not private, 'timeout': args.timeout, 'max_workers': 3, 'max_hops': args.hops, 'discovery_port_cap': MAX_DISCOVERY_PORTS, 'total_port_cap': MAX_TOTAL_PORTS}, 'dependencies': {name: bool(shutil.which(name)) for name in ('ip', 'iptables', 'ip6tables', 'nft', 'nmap', 'mtr', 'curl', 'jq')}}
+    report = {'schema_version': 2, 'version': '1.4.7', 'generated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'ip': ip, 'ports': ports, 'path': path, 'route': path_route, 'tcp': {p: skipped(p) for p in ports}, 'udp': {}, 'http': {}, 'sni_name': args.sni, 'sni_dns': {}, 'sni_tls': {}, 'volume': {'status': 'SKIPPED', 'detail': 'Проба запускается, если TCP/443 доступен'}, 'tls': {}, 'syn': {}, 'services': {}, 'discovery': {'status': 'SKIPPED', 'ports': []}, 'routing': {}, 'controls': {}, 'traces': {}, 'external': [], 'external_status': 'DISABLED' if private else 'NOT_NEEDED', 'stages': [], 'errors': [], 'ping': {'status': 'SKIPPED', 'sent': 0, 'received': 0, 'rtts': [], 'events': []}, 'settings': {'external_allowed': not private, 'timeout': args.timeout, 'max_workers': 3, 'max_hops': args.hops, 'discovery_port_cap': MAX_DISCOVERY_PORTS, 'total_port_cap': MAX_TOTAL_PORTS}, 'dependencies': {name: bool(shutil.which(name)) for name in ('ip', 'iptables', 'ip6tables', 'nft', 'nmap', 'mtr', 'curl', 'jq')}}
     quiet = args.json
     try:
         if not quiet:
@@ -10022,8 +10033,18 @@ xmenu_load_hidden_items() {
     fi
 }
 
+xmenu_xkeen_command() {
+    if [ -x /opt/sbin/xkeen ]; then
+        printf '%s' '/opt/sbin/xkeen'
+    elif [ -x /opt/bin/xkeen ]; then
+        printf '%s' '/opt/bin/xkeen'
+    else
+        command -v xkeen 2>/dev/null || return 1
+    fi
+}
+
 xmenu_xkeen_is_installed() {
-    [ -x /opt/sbin/xkeen ] || command -v xkeen >/dev/null 2>&1
+    xmenu_xkeen_command >/dev/null 2>&1
 }
 
 xmenu_main_item_available() {
@@ -10314,12 +10335,12 @@ xmenu_manage_xkeen_menu() {
         _read_or_eof "$_xkm_prompt" || return 0
         case "$_read_value" in
             1)
-                xmenu_xkeen_is_installed || { say "${RED}XKeen больше не найден.${RESET}"; pause; return 1; }
+                _xkm_cmd=$(xmenu_xkeen_command) || { say "${RED}XKeen больше не найден.${RESET}"; pause; return 1; }
                 acquire_lock || return 1
                 trap 'release_operation_lock' 0
                 say "${BRIGHT_CYAN}Запускаю штатный выбор канала XKeen...${RESET}"
-                if has_controlling_tty; then /opt/sbin/xkeen -channel </dev/tty
-                else /opt/sbin/xkeen -channel
+                if has_controlling_tty; then "$_xkm_cmd" -channel </dev/tty
+                else "$_xkm_cmd" -channel
                 fi
                 _xkm_rc=$?
                 release_operation_lock
@@ -10328,13 +10349,13 @@ xmenu_manage_xkeen_menu() {
                 pause
                 ;;
             2)
-                xmenu_xkeen_is_installed || { say "${RED}XKeen больше не найден.${RESET}"; pause; return 1; }
+                _xkm_cmd=$(xmenu_xkeen_command) || { say "${RED}XKeen больше не найден.${RESET}"; pause; return 1; }
                 if [ "$_xkm_lang" = en ]; then confirm 'Update XKeen now?'; else confirm 'Обновить XKeen сейчас?'; fi || continue
                 acquire_lock || return 1
                 trap 'invalidate_component_status_cache; release_operation_lock' 0
                 say "${BRIGHT_CYAN}Запускаю штатное обновление XKeen (xkeen -uk)...${RESET}"
-                if has_controlling_tty; then /opt/sbin/xkeen -uk </dev/tty
-                else /opt/sbin/xkeen -uk
+                if has_controlling_tty; then "$_xkm_cmd" -uk </dev/tty
+                else "$_xkm_cmd" -uk
                 fi
                 _xkm_rc=$?
                 invalidate_component_status_cache
